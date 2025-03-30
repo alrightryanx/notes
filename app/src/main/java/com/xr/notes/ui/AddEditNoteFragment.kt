@@ -68,6 +68,7 @@ class AddEditNoteFragment : Fragment() {
 
         // Get arguments directly instead of using navArgs
         val noteId = arguments?.getLong("noteId", -1L) ?: -1L
+        Log.d("AddEditNoteFragment", "onViewCreated with noteId: $noteId")
 
         if (noteId != -1L) {
             // Edit existing note
@@ -77,9 +78,11 @@ class AddEditNoteFragment : Fragment() {
         observeViewModel()
     }
 
+
     private fun observeViewModel() {
         viewModel.note.observe(viewLifecycleOwner) { note ->
             note?.let {
+                Log.d("AddEditNoteFragment", "Note data received: ID=${it.id}, content=${it.content.take(20)}...")
                 editTextNote.setText(it.content)
                 isEncrypted = it.isEncrypted
 
@@ -90,8 +93,10 @@ class AddEditNoteFragment : Fragment() {
         }
 
         viewModel.saveComplete.observe(viewLifecycleOwner) { saved ->
+            Log.d("AddEditNoteFragment", "saveComplete: $saved")
             if (saved) {
-                isSaving = false // Reset the flag after save completes
+                isSaving = false
+                Log.d("AddEditNoteFragment", "Navigation back after save")
                 findNavController().navigateUp()
             }
         }
@@ -153,15 +158,14 @@ class AddEditNoteFragment : Fragment() {
             return
         }
 
-        isSaving = true // Set the flag to prevent multiple saves
+        Log.d("AddEditNoteFragment", "Saving note with content: ${content.take(20)}...")
+        isSaving = true
+
         val job = viewModel.saveNote(content, isEncrypted)
         job.invokeOnCompletion {
-            // Make sure we're back on the main thread
             activity?.runOnUiThread {
-                isSaving = false
-                if (viewModel.saveComplete.value == true) {
-                    findNavController().navigateUp()
-                }
+                Log.d("AddEditNoteFragment", "Save operation completed")
+                // The ViewModel's saveComplete LiveData will handle navigation
             }
         }
     }

@@ -141,8 +141,16 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
     override fun onResume() {
         super.onResume()
         Log.d("NotesFragment", "onResume called")
-        // Refresh data when returning to this fragment
+        // Force refresh notes when returning from add/edit
         viewModel.forceRefreshNotes()
+
+        // Also try a delayed refresh
+        view?.postDelayed({
+            if (isAdded) {
+                Log.d("NotesFragment", "Delayed refresh - requesting data refresh")
+                viewModel.forceRefreshNotes()
+            }
+        }, 500)
     }
 
     @Suppress("DEPRECATION")

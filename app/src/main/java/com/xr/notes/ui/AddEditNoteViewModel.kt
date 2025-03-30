@@ -9,8 +9,10 @@ import com.xr.notes.models.Label
 import com.xr.notes.models.Note
 import com.xr.notes.repo.NotesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Date
 import javax.inject.Inject
 
@@ -49,8 +51,10 @@ class AddEditNoteViewModel @Inject constructor(
 
     fun hasNoteBeenSaved(): Boolean = currentNoteId != -1L
 
+    // In AddEditNoteViewModel.kt - modify the saveNote function
     fun saveNote(content: String, isEncrypted: Boolean): Job {
-        // Prevent multiple concurrent save operations
+        Log.d("AddEditNoteVM", "saveNote called with content: ${content.take(20)}...")
+
         if (isSaving) return viewModelScope.launch {}
         isSaving = true
 
@@ -66,6 +70,7 @@ class AddEditNoteViewModel @Inject constructor(
                         modifiedAt = Date()
                     )
                     repository.updateNote(updatedNote)
+                    Log.d("AddEditNoteVM", "Updated existing note ID: ${currentNote.id}")
                 } else {
                     // Create new note
                     val newNote = Note(
@@ -75,12 +80,19 @@ class AddEditNoteViewModel @Inject constructor(
                         modifiedAt = Date()
                     )
                     currentNoteId = repository.insertNote(newNote)
-                    Log.d("AddEditNoteVM", "New note created with ID: $currentNoteId")
+                    Log.d("AddEditNoteVM", "Created NEW note with ID: $currentNoteId")
                 }
 
-                _saveComplete.value = true
+                // Signal completion on main thread
+                withContext(Dispatchers.Main) {
+                    _saveComplete.value = true
+                    Log.d("AddEditNoteVM", "Save completed, signaling navigation")
+                }
             } catch (e: Exception) {
                 Log.e("AddEditNoteVM", "Error saving note", e)
+                withContext(Dispatchers.Main) {
+                    _saveComplete.value = false
+                }
             } finally {
                 isSaving = false
             }

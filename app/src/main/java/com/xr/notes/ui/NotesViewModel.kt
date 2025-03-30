@@ -1,5 +1,6 @@
 package com.xr.notes.ui
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
@@ -87,34 +88,48 @@ class NotesViewModel @Inject constructor(
     }
 
     // Force a refresh of the notes list
+// In NotesViewModel.kt - update the forceRefreshNotes method
     fun forceRefreshNotes() {
-        // Call setupObservers to make sure we're subscribed to updates
-        setupObservers()
+        Log.d("NotesViewModel", "forceRefreshNotes called")
 
-        // Manually trigger repository to update its LiveData
+        // First remove any existing sources to prevent duplicates
+        if (notesWithLabelsSource != null) {
+            _notesWithLabels.removeSource(notesWithLabelsSource!!)
+        }
+
+        // Get fresh source
+        notesWithLabelsSource = repository.getAllNotesWithLabels()
+
+        // Add source again
+        _notesWithLabels.addSource(notesWithLabelsSource!!) { notesWithLabels ->
+            Log.d("NotesViewModel", "Observer received ${notesWithLabels.size} notes from DB")
+            _notesWithLabels.value = applySortOrder(notesWithLabels, prefManager.getSortOrder())
+            updateFilteredNotes()
+        }
+
+        // Direct query to check database state
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    // Direct refresh from database for immediate results
-                    val allNotes = repository.getAllNotesWithLabels().value
-                    if (allNotes != null) {
+                    // Query the database directly to check if notes exist
+                    val count = repository.getNoteCount()
+                    Log.d("NotesViewModel", "Direct count query returned $count notes")
+
+                    if (count > 0) {
+                        // If notes exist, force refresh UI
                         withContext(Dispatchers.Main) {
+                            val allNotes = repository.getAllNotesWithLabels().value ?: emptyList()
+                            Log.d("NotesViewModel", "Direct refresh found ${allNotes.size} notes")
                             _notesWithLabels.value = applySortOrder(allNotes, prefManager.getSortOrder())
                             updateFilteredNotes()
                         }
                     }
                 }
             } catch (e: Exception) {
-                // Handle error
+                Log.e("NotesViewModel", "Error in forceRefreshNotes", e)
             }
         }
-
-        // Also manually trigger an update if we already have notes
-        _notesWithLabels.value?.let {
-            updateFilteredNotes()
-        }
     }
-
     private fun updateFilteredNotes() {
         val allNotes = _notesWithLabels.value ?: emptyList()
         val searchQuery = _searchQuery.value ?: ""
