@@ -1,6 +1,5 @@
-package com.xr.notes.ui
 
-// File: app/src/main/java/com/example/notesapp/ui/notes/AddEditNoteViewModel.kt
+package com.xr.notes.ui
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -29,6 +28,7 @@ class AddEditNoteViewModel @Inject constructor(
     val labelsWithSelection: LiveData<List<Pair<Label, Boolean>>> = _labelsWithSelection
 
     private var currentNoteId: Long = -1L
+    private var isSaving = false // Flag to prevent concurrent save operations
 
     fun loadNote(noteId: Long) {
         if (noteId != -1L) {
@@ -44,32 +44,41 @@ class AddEditNoteViewModel @Inject constructor(
     }
 
     fun saveNote(content: String, isEncrypted: Boolean) {
+        // Prevent multiple concurrent save operations
+        if (isSaving) return
+        isSaving = true
+
         viewModelScope.launch {
-            val currentNote = _note.value
+            try {
+                val currentNote = _note.value
 
-            if (currentNote != null) {
-                // Update existing note
-                val updatedNote = currentNote.copy(
-                    content = content,
-                    isEncrypted = isEncrypted,
-                    modifiedAt = Date()
-                )
-                repository.updateNote(updatedNote)
-            } else {
-                // Create new note
-                val newNote = Note(
-                    content = content,
-                    isEncrypted = isEncrypted,
-                    createdAt = Date(),
-                    modifiedAt = Date()
-                )
-                currentNoteId = repository.insertNote(newNote)
+                if (currentNote != null) {
+                    // Update existing note
+                    val updatedNote = currentNote.copy(
+                        content = content,
+                        isEncrypted = isEncrypted,
+                        modifiedAt = Date()
+                    )
+                    repository.updateNote(updatedNote)
+                } else {
+                    // Create new note
+                    val newNote = Note(
+                        content = content,
+                        isEncrypted = isEncrypted,
+                        createdAt = Date(),
+                        modifiedAt = Date()
+                    )
+                    currentNoteId = repository.insertNote(newNote)
+                }
+
+                _saveComplete.value = true
+            } finally {
+                isSaving = false
             }
-
-            _saveComplete.value = true
         }
     }
 
+    // Rest of the methods remain unchanged
     fun getAllLabels() {
         viewModelScope.launch {
             val allLabels = repository.getAllLabels().value ?: emptyList()

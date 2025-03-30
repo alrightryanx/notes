@@ -1,10 +1,5 @@
 package com.xr.notes
 
-import com.xr.notes.utils.Encryption
-
-// File: app/src/main/java/com/example/notesapp/di/AppModule.kt
-
-
 import android.content.Context
 import com.xr.notes.database.AppDatabase
 import com.xr.notes.database.LabelDao
@@ -12,6 +7,7 @@ import com.xr.notes.database.NoteDao
 import com.xr.notes.repo.NotesRepository
 import com.xr.notes.utils.AppPreferenceManager
 import com.xr.notes.utils.BackupManager
+import com.xr.notes.utils.Encryption
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -21,35 +17,35 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-object AppModule {
+public object AppModule {
 
     @Singleton
     @Provides
-    fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
+    public fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
         return AppDatabase.getDatabase(context)
     }
 
     @Singleton
     @Provides
-    fun provideNoteDao(database: AppDatabase): NoteDao {
+    public fun provideNoteDao(database: AppDatabase): NoteDao {
         return database.noteDao()
     }
 
     @Singleton
     @Provides
-    fun provideLabelDao(database: AppDatabase): LabelDao {
+    public fun provideLabelDao(database: AppDatabase): LabelDao {
         return database.labelDao()
     }
 
     @Singleton
     @Provides
-    fun provideEncryption(): Encryption {
+    public fun provideEncryption(): Encryption {
         return Encryption()
     }
 
     @Singleton
     @Provides
-    fun provideNotesRepository(
+    public fun provideNotesRepository(
         noteDao: NoteDao,
         labelDao: LabelDao,
         encryption: Encryption
@@ -59,13 +55,13 @@ object AppModule {
 
     @Singleton
     @Provides
-    fun providePreferenceManager(@ApplicationContext context: Context): AppPreferenceManager {
+    public fun providePreferenceManager(@ApplicationContext context: Context): AppPreferenceManager {
         return AppPreferenceManager(context)
     }
 
     @Singleton
     @Provides
-    fun provideBackupManager(@ApplicationContext context: Context): BackupManager {
+    public fun provideBackupManager(@ApplicationContext context: Context): BackupManager {
         return BackupManager(context)
     }
 }

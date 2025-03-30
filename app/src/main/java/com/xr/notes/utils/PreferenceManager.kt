@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.preference.PreferenceManager
+import androidx.core.content.edit
 
 class AppPreferenceManager(context: Context) {
 
@@ -44,7 +45,9 @@ class AppPreferenceManager(context: Context) {
     }
 
     fun setTheme(theme: String) {
-        sharedPreferences.edit().putString(KEY_THEME, theme).apply()
+        sharedPreferences.edit {
+            putString(KEY_THEME, theme)
+        }
     }
 
     fun applyTheme() {

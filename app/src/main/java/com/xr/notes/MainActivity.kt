@@ -5,6 +5,7 @@ package com.xr.notes
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupActionBarWithNavController
@@ -25,6 +26,8 @@ class MainActivity : AppCompatActivity() {
 
         // Apply theme from preferences before setting content view
         prefManager.applyTheme()
+        // Handle window insets properly
+        WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContentView(R.layout.activity_main)
 

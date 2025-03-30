@@ -1,7 +1,5 @@
 package com.xr.notes.database
 
-// File: app/src/main/java/com/example/notesapp/data/database/NoteDao.kt
-
 import androidx.lifecycle.LiveData
 import androidx.room.*
 import com.xr.notes.models.Note
@@ -13,7 +11,7 @@ interface NoteDao {
     @Query("SELECT * FROM notes ORDER BY modifiedAt DESC")
     fun getAllNotes(): LiveData<List<Note>>
 
-    @Query("SELECT * FROM notes ORDER BY title ASC")
+    @Query("SELECT * FROM notes ORDER BY content ASC")
     fun getAllNotesSortedByTitle(): LiveData<List<Note>>
 
     @Query("SELECT * FROM notes ORDER BY createdAt DESC")

@@ -1,6 +1,5 @@
-package com.xr.notes.ui
 
-// File: app/src/main/java/com/example/notesapp/ui/notes/AddEditNoteFragment.kt
+package com.xr.notes.ui
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -33,6 +32,7 @@ class AddEditNoteFragment : Fragment() {
 
     private lateinit var editTextNote: EditText
     private var isEncrypted = false
+    private var isSaving = false // Flag to prevent multiple saves
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,6 +80,7 @@ class AddEditNoteFragment : Fragment() {
 
         viewModel.saveComplete.observe(viewLifecycleOwner) { saved ->
             if (saved) {
+                isSaving = false // Reset the flag after save completes
                 findNavController().navigateUp()
             }
         }
@@ -99,7 +100,9 @@ class AddEditNoteFragment : Fragment() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_save -> {
-                saveNote()
+                if (!isSaving) { // Prevent double saves
+                    saveNote()
+                }
                 true
             }
 
@@ -133,9 +136,24 @@ class AddEditNoteFragment : Fragment() {
             return
         }
 
+        isSaving = true // Set the flag to prevent multiple saves
         viewModel.saveNote(content, isEncrypted)
     }
 
+    // Prevent automatic save when navigating back
+    override fun onPause() {
+        super.onPause()
+        // Only auto-save if not already saving through the save button
+        if (!isSaving && ::editTextNote.isInitialized) {
+            val content = editTextNote.text.toString().trim()
+            if (content.isNotEmpty()) {
+                isSaving = true
+                viewModel.saveNote(content, isEncrypted)
+            }
+        }
+    }
+
+    // Rest of the functions remain unchanged
     private fun showLabelsDialog() {
         viewModel.getAllLabels()
 

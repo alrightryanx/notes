@@ -1,7 +1,5 @@
 package com.xr.notes
 
-// File: app/src/main/java/com/example/notesapp/NotesApplication.kt
-
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
@@ -35,6 +33,12 @@ class NotesApplication : Application(), Configuration.Provider {
         // Apply theme from preferences
         prefManager.applyTheme()
 
+        // Initialize WorkManager explicitly to avoid initialization issues
+        WorkManager.initialize(
+            this,
+            workManagerConfiguration
+        )
+
         // Setup auto-backup if enabled
         if (prefManager.isAutoBackupEnabled()) {
             scheduleBackupWork()
@@ -53,7 +57,7 @@ class NotesApplication : Application(), Configuration.Provider {
             backupRequest
         )
     }
-    
+
     companion object {
         private const val BACKUP_WORK_NAME = "notes_auto_backup"
     }
