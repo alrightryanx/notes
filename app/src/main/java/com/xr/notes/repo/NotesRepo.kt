@@ -47,10 +47,21 @@ class NotesRepository(
 
             val noteToInsert = note.copy(content = content)
             val id = noteDao.insert(noteToInsert)
-            Log.d("NotesRepository", "Inserted note with ID: $id")
+            Log.d("NotesRepository", "Inserted note with ID: $id, content: ${note.content.take(20)}...")
             id
         } catch (e: Exception) {
             Log.e("NotesRepository", "Error inserting note", e)
+            throw e
+        }
+    }
+
+    suspend fun insertLabel(label: Label): Long = withContext(Dispatchers.IO) {
+        try {
+            val id = labelDao.insert(label)
+            Log.d("NotesRepository", "Inserted label with ID: $id, name: ${label.name}")
+            id
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Error inserting label", e)
             throw e
         }
     }
@@ -131,17 +142,6 @@ class NotesRepository(
     fun getLabelById(labelId: Long): LiveData<Label> = labelDao.getLabelById(labelId)
 
     fun getLabelWithNotes(labelId: Long): LiveData<LabelWithNotes> = labelDao.getLabelWithNotes(labelId)
-
-    suspend fun insertLabel(label: Label): Long = withContext(Dispatchers.IO) {
-        try {
-            val id = labelDao.insert(label)
-            Log.d("NotesRepository", "Inserted label with ID: $id")
-            id
-        } catch (e: Exception) {
-            Log.e("NotesRepository", "Error inserting label", e)
-            throw e
-        }
-    }
 
     suspend fun updateLabel(label: Label) = withContext(Dispatchers.IO) {
         try {

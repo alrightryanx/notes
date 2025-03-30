@@ -1,5 +1,6 @@
 package com.xr.notes.ui
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -25,14 +26,16 @@ class SharedLabelViewModel @Inject constructor(
     /**
      * Initialize active labels - at the start we want all labels to be active
      */
-    fun initializeActiveLabels() {
+    internal fun initializeActiveLabels() {
+        // Add logging to verify this is working
+        Log.d("MainActivity", "Initializing active labels")
         viewModelScope.launch {
             val labels = repository.getAllLabels().value ?: emptyList()
-            if (labels.isNotEmpty()) {
-                // Set all labels as active
-                val allLabelIds = labels.map { it.id }.toSet()
-                activeLabelsStore.setActiveLabels(allLabelIds)
-            }
+
+            // Set all labels as active, even if the list is empty
+            val allLabelIds = labels.map { it.id }.toSet()
+            activeLabelsStore.setActiveLabels(allLabelIds)
+            Log.d("MainActivity", "Found ${labels.size} labels to initialize as active")
         }
     }
 

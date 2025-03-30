@@ -5,6 +5,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xr.notes.models.Note
+import com.xr.notes.models.NoteWithLabels
 import com.xr.notes.repo.NotesRepository
 import com.xr.notes.utils.AppPreferenceManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,8 +21,8 @@ class LabelNotesViewModel @Inject constructor(
 ) : ViewModel() {
 
     private var labelId: Long = -1
-    private val _notesWithLabel = MutableLiveData<List<Note>>()
-    val notesWithLabel: LiveData<List<Note>> = _notesWithLabel
+    private val _notesWithLabel = MutableLiveData<List<NoteWithLabels>>()
+    val notesWithLabel: LiveData<List<NoteWithLabels>> = _notesWithLabel
 
     private val _searchQuery = MutableLiveData<String>("")
     private val _currentNotes = MutableLiveData<List<Note>>(listOf())
@@ -44,10 +45,15 @@ class LabelNotesViewModel @Inject constructor(
     private fun updateNotesList(notes: List<Note>) {
         val query = _searchQuery.value ?: ""
         if (query.isEmpty()) {
-            _notesWithLabel.value = notes
+            _notesWithLabel.value = notes.map { note ->
+                NoteWithLabels(note, emptyList())
+            }
         } else {
-            _notesWithLabel.value = notes.filter { note ->
+            val filteredNotes = notes.filter { note ->
                 note.content.contains(query, ignoreCase = true)
+            }
+            _notesWithLabel.value = filteredNotes.map { note ->
+                NoteWithLabels(note, emptyList())
             }
         }
     }
@@ -57,8 +63,14 @@ class LabelNotesViewModel @Inject constructor(
 
         // Trigger filtering of current list
         _currentNotes.value?.let { notes ->
-            _notesWithLabel.value = notes.filter { note ->
+            // Convert Note objects to NoteWithLabels
+            val filteredNotes = notes.filter { note ->
                 note.content.contains(query, ignoreCase = true)
+            }
+
+            // Map to NoteWithLabels
+            _notesWithLabel.value = filteredNotes.map { note ->
+                NoteWithLabels(note, emptyList()) // Empty labels list or fetch actual labels
             }
         }
     }

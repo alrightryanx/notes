@@ -40,7 +40,8 @@ class NotesViewModel @Inject constructor(
         // Load notes with their labels
         _notesWithLabels.addSource(repository.getAllNotesWithLabels()) { notesWithLabels ->
             _notesWithLabels.value = applySortOrder(notesWithLabels, prefManager.getSortOrder())
-            updateFilteredNotes()
+            // Initially show all notes without filtering
+            _filteredNotes.value = _notesWithLabels.value
         }
 
         // Listen for active labels changes

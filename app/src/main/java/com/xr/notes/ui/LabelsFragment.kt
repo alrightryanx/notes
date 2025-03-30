@@ -134,10 +134,10 @@ class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
     @Suppress("DEPRECATION")
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            R.id.action_add_label -> {
+            /*R.id.action_add_label -> {
                 showAddLabelDialog()
                 true
-            }
+            }*/
             else -> super.onOptionsItemSelected(item)
         }
     }

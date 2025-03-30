@@ -1,5 +1,6 @@
 package com.xr.notes.ui
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
@@ -28,8 +29,10 @@ class LabelsViewModel @Inject constructor(
         // Initialize with active labels from the store
         _activeLabels.value = activeLabelsStore.getActiveLabels()
 
-        // Subscribe to changes from repository
+        // Subscribe to changes from repository - make sure this is working
         _labelItems.addSource(repository.getAllLabels()) { labels ->
+            // Add logging to debug
+            Log.d("LabelsViewModel", "Retrieved ${labels.size} labels from repository")
             updateLabelItems(labels)
         }
 
