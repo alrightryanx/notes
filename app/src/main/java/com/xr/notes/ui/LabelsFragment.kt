@@ -54,11 +54,13 @@ class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
 
         setupRecyclerView()
         setupFab()
+        observeViewModel()
+
+        // Initialize active labels
+        sharedViewModel.initializeActiveLabels()
 
         // Force a refresh of the labels
         viewModel.forceRefreshLabels()
-
-        observeViewModel()
 
         return view
     }

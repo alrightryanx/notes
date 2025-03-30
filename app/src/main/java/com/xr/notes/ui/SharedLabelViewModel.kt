@@ -23,6 +23,13 @@ class SharedLabelViewModel @Inject constructor(
     private val _filteringByActiveEnabled = MutableLiveData<Boolean>(false)
     val filteringByActiveEnabled: LiveData<Boolean> = _filteringByActiveEnabled
 
+    init {
+        // Initialize shared model
+        viewModelScope.launch {
+            initializeActiveLabels()
+        }
+    }
+
     /**
      * Initialize active labels - at the start we want all labels to be active
      */

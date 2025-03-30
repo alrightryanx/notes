@@ -51,12 +51,9 @@ class NotesViewModel @Inject constructor(
     private fun setupObservers() {
         Log.d("NotesViewModel", "Setting up observers")
 
-        // First, check if we already have a source
-        val existingSource = notesWithLabelsSource
-        if (existingSource != null) {
-            // We already have a source, don't remove it or add again
-            Log.d("NotesViewModel", "Source already exists, skipping setup")
-            return
+        // First, remove any existing source to avoid duplicates
+        if (notesWithLabelsSource != null) {
+            _notesWithLabels.removeSource(notesWithLabelsSource!!)
         }
 
         // Get fresh source
@@ -92,7 +89,8 @@ class NotesViewModel @Inject constructor(
     fun forceRefreshNotes() {
         Log.d("NotesViewModel", "Force refreshing notes")
 
-        // Don't call setupObservers again - we just need to trigger updates
+        // Call setupObservers to make sure we're subscribed to updates
+        setupObservers()
 
         // Manually trigger repository to update its LiveData
         viewModelScope.launch {
@@ -116,13 +114,11 @@ class NotesViewModel @Inject constructor(
 
     private fun updateFilteredNotes() {
         val allNotes = _notesWithLabels.value ?: emptyList()
-        val activeLabelsIds = activeLabelsStore.getActiveLabels()
         val searchQuery = _searchQuery.value ?: ""
 
-        Log.d("NotesViewModel", "Updating filtered notes. Total notes: ${allNotes.size}, " +
-                "Active labels: ${activeLabelsIds.size}, Search query: '$searchQuery'")
+        Log.d("NotesViewModel", "Updating filtered notes. Total notes: ${allNotes.size}, Search query: '$searchQuery'")
 
-        // Just show all notes for now, no filtering by labels
+        // Filter by search query first
         val filteredBySearch = if (searchQuery.isEmpty()) {
             allNotes
         } else {

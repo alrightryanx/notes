@@ -50,7 +50,10 @@ class MainActivity : AppCompatActivity() {
 
         // Initialize with a delay to ensure DB is ready
         lifecycleScope.launch {
-            delay(1000) // Longer delay to ensure DB is fully initialized
+            // First make sure we're not filtering by active labels
+            sharedLabelViewModel.toggleActiveFiltering(false)
+
+            // Explicitly initialize active labels
             initializeActiveLabels()
         }
     }
@@ -60,11 +63,14 @@ class MainActivity : AppCompatActivity() {
 
         // Ensure we start with all labels active
         lifecycleScope.launch {
-            // First, initialize the shared view model
+            // Make an immediate attempt to initialize
             sharedLabelViewModel.initializeActiveLabels()
 
-            // Then add a debug log after a short delay to check active labels
-            delay(500)
+            // Then try again after a delay to be sure
+            delay(1000)
+            sharedLabelViewModel.initializeActiveLabels()
+
+            // Debug log
             val activeLabels = activeLabelsStore.getActiveLabels()
             Log.d("MainActivity", "After initialization, active labels count: ${activeLabels.size}")
         }
