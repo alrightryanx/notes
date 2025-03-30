@@ -23,6 +23,12 @@ class NotesApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var prefManager: AppPreferenceManager
 
+    // Implement as a property instead of a method
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
+
     override fun onCreate() {
         super.onCreate()
 
@@ -47,13 +53,7 @@ class NotesApplication : Application(), Configuration.Provider {
             backupRequest
         )
     }
-
-    override fun getWorkManagerConfiguration(): Configuration {
-        return Configuration.Builder()
-            .setWorkerFactory(workerFactory)
-            .build()
-    }
-
+    
     companion object {
         private const val BACKUP_WORK_NAME = "notes_auto_backup"
     }

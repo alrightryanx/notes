@@ -17,6 +17,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
+import com.xr.notes.R
 import com.xr.notes.utils.AppPreferenceManager
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject

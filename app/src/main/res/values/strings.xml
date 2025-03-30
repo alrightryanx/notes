@@ -25,6 +25,7 @@
     <string name="action_cancel">Cancel</string>
     <string name="action_create">Create</string>
     <string name="action_done">Done</string>
+    <string name="action_new_label">New Label</string>
 
     <!-- Notes -->
     <string name="add_new_note">Add New Note</string>
