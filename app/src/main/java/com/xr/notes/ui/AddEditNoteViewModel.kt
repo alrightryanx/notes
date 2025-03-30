@@ -1,4 +1,3 @@
-
 package com.xr.notes.ui
 
 import androidx.lifecycle.LiveData
@@ -7,8 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xr.notes.models.Label
 import com.xr.notes.models.Note
+import com.xr.notes.models.NoteWithLabels
 import com.xr.notes.repo.NotesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.util.Date
 import javax.inject.Inject
@@ -43,12 +44,14 @@ class AddEditNoteViewModel @Inject constructor(
         }
     }
 
-    fun saveNote(content: String, isEncrypted: Boolean) {
+    fun hasNoteBeenSaved(): Boolean = currentNoteId != -1L
+
+    fun saveNote(content: String, isEncrypted: Boolean): Job {
         // Prevent multiple concurrent save operations
-        if (isSaving) return
+        if (isSaving) return viewModelScope.launch {}
         isSaving = true
 
-        viewModelScope.launch {
+        return viewModelScope.launch {
             try {
                 val currentNote = _note.value
 
@@ -78,20 +81,23 @@ class AddEditNoteViewModel @Inject constructor(
         }
     }
 
-    // Rest of the methods remain unchanged
     fun getAllLabels() {
         viewModelScope.launch {
-            val allLabels = repository.getAllLabels().value ?: emptyList()
+            // Get all labels
+            val labels = repository.getAllLabels().value ?: emptyList()
 
             if (currentNoteId != -1L) {
+                // For existing note, get associated labels
                 val noteWithLabels = repository.getNoteWithLabels(currentNoteId).value
                 val noteLabels = noteWithLabels?.labels ?: emptyList()
 
-                _labelsWithSelection.value = allLabels.map { label ->
+                // Create pairs of (label, isSelected)
+                _labelsWithSelection.value = labels.map { label ->
                     label to noteLabels.any { it.id == label.id }
                 }
             } else {
-                _labelsWithSelection.value = allLabels.map { label ->
+                // For a new note, all labels are unselected
+                _labelsWithSelection.value = labels.map { label ->
                     label to false
                 }
             }
@@ -150,6 +156,4 @@ class AddEditNoteViewModel @Inject constructor(
             repository.deleteNote(currentNote)
         }
     }
-
-
 }

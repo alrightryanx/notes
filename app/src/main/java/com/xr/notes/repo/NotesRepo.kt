@@ -30,8 +30,6 @@ class NotesRepository(
 
     fun searchNotes(query: String): LiveData<List<Note>> = noteDao.searchNotes(query)
 
-    fun getNoteWithLabels(noteId: Long): LiveData<NoteWithLabels> = noteDao.getNoteWithLabels(noteId)
-
     fun getAllNotesWithLabels(): LiveData<List<NoteWithLabels>> = noteDao.getAllNotesWithLabels()
 
     suspend fun insertNote(note: Note): Long {
@@ -89,7 +87,8 @@ class NotesRepository(
 
     suspend fun deleteAllLabels() = labelDao.deleteAllLabels()
 
-    // Note-Label relationship operations
+    fun getNoteWithLabels(noteId: Long): LiveData<NoteWithLabels> = noteDao.getNoteWithLabels(noteId)
+
     suspend fun addLabelToNote(noteId: Long, labelId: Long) {
         noteDao.insertNoteLabelCrossRef(NoteLabelCrossRef(noteId, labelId))
     }

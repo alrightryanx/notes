@@ -1,7 +1,7 @@
-
 package com.xr.notes.ui
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuInflater
@@ -153,13 +153,63 @@ class AddEditNoteFragment : Fragment() {
         }
     }
 
-    // Rest of the functions remain unchanged
     private fun showLabelsDialog() {
-        viewModel.getAllLabels()
+        // Clear previous observers to avoid duplicates
+        viewModel.labelsWithSelection.removeObservers(viewLifecycleOwner)
+
+        // If this is a new note that hasn't been saved yet
+        if (args.noteId == -1L && !viewModel.hasNoteBeenSaved()) {
+            // First save the note
+            val content = editTextNote.text.toString().trim()
+            if (content.isEmpty()) {
+                Snackbar.make(requireView(), R.string.error_empty_note, Snackbar.LENGTH_SHORT).show()
+                return
+            }
+
+            // Show a loading indicator
+            val loadingDialog = AlertDialog.Builder(requireContext())
+                .setMessage("Saving note...")
+                .setCancelable(false)
+                .create()
+            loadingDialog.show()
+
+            // Save the note first, then show the labels dialog
+            viewModel.saveNote(content, isEncrypted).invokeOnCompletion {
+                requireActivity().runOnUiThread {
+                    loadingDialog.dismiss()
+                    // Now that the note is saved, get the labels
+                    viewModel.getAllLabels()
+                }
+            }
+        } else {
+            // Existing note, just get the labels
+            viewModel.getAllLabels()
+        }
 
         viewModel.labelsWithSelection.observe(viewLifecycleOwner) { labelsWithSelection ->
+            if (labelsWithSelection.isEmpty()) {
+                // Show a message if no labels are available
+                AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.select_labels)
+                    .setMessage("No labels available. Create a label first.")
+                    .setPositiveButton(R.string.action_done) { dialog, _ ->
+                        dialog.dismiss()
+                    }
+                    .setNeutralButton(R.string.action_new_label) { _, _ ->
+                        showNewLabelDialog()
+                    }
+                    .show()
+                return@observe
+            }
+
             val labelNames = labelsWithSelection.map { it.first.name }.toTypedArray()
             val checkedItems = labelsWithSelection.map { it.second }.toBooleanArray()
+
+            // Log for debugging
+            Log.d("LabelsDialog", "Label count: ${labelNames.size}")
+            for (i in labelNames.indices) {
+                Log.d("LabelsDialog", "Label: ${labelNames[i]}, Checked: ${checkedItems[i]}")
+            }
 
             MaterialAlertDialogBuilder(requireContext())
                 .setTitle(R.string.select_labels)
