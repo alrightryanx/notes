@@ -46,6 +46,8 @@ class NotesViewModel @Inject constructor(
     init {
         Log.d("NotesViewModel", "Initializing")
         setupObservers()
+        // Force initial load
+        forceRefreshNotes()
     }
 
     private fun setupObservers() {
@@ -96,6 +98,15 @@ class NotesViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) {
+                    // Direct refresh from database for immediate results
+                    val allNotes = repository.getAllNotesWithLabels().value
+                    if (allNotes != null) {
+                        withContext(Dispatchers.Main) {
+                            _notesWithLabels.value = applySortOrder(allNotes, prefManager.getSortOrder())
+                            updateFilteredNotes()
+                        }
+                    }
+
                     // This is a workaround to force Room to re-query
                     val dummyNote = Note(id = -999L, content = "Dummy")
                     val inserted = repository.insertNote(dummyNote)

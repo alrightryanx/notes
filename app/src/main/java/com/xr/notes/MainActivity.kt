@@ -48,14 +48,8 @@ class MainActivity : AppCompatActivity() {
         // Setup ActionBar with NavController
         setupActionBarWithNavController(navController)
 
-        // Initialize with a delay to ensure DB is ready
-        lifecycleScope.launch {
-            // First make sure we're not filtering by active labels
-            sharedLabelViewModel.toggleActiveFiltering(false)
-
-            // Explicitly initialize active labels
-            initializeActiveLabels()
-        }
+        // Ensure active labels are initialized early
+        initializeActiveLabels()
     }
 
     private fun initializeActiveLabels() {
@@ -66,7 +60,10 @@ class MainActivity : AppCompatActivity() {
             // Make an immediate attempt to initialize
             sharedLabelViewModel.initializeActiveLabels()
 
-            // Then try again after a delay to be sure
+            // Try additional times with delays to handle race conditions
+            delay(500)
+            sharedLabelViewModel.initializeActiveLabels()
+
             delay(1000)
             sharedLabelViewModel.initializeActiveLabels()
 

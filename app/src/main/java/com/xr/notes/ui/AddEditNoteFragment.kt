@@ -12,7 +12,6 @@ import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.viewModelScope
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
@@ -21,9 +20,10 @@ import com.xr.notes.models.Label
 import com.xr.notes.repo.NotesRepository
 import com.xr.notes.utils.AppPreferenceManager
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -41,6 +41,7 @@ class AddEditNoteFragment : Fragment() {
     private lateinit var editTextNote: EditText
     private var isEncrypted = false
     private var isSaving = false // Flag to prevent multiple saves
+    private val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -199,43 +200,52 @@ class AddEditNoteFragment : Fragment() {
     }
 
     private fun showLabelsDialog() {
-        // Get all labels directly from the repository
-        val loadingDialog = AlertDialog.Builder(requireContext())
-            .setMessage("Loading labels...")
-            .setCancelable(false)
-            .create()
-        loadingDialog.show()
+        // Get all labels from the ViewModel
+        coroutineScope.launch {
+            val loadingDialog = AlertDialog.Builder(requireContext())
+                .setMessage("Loading labels...")
+                .setCancelable(false)
+                .create()
 
-        viewModelScope.launch {
             try {
-                // Directly fetch labels from repository instead of using LiveData
+                // Safe context check
+                if (!isAdded) return@launch
+
+                loadingDialog.show()
+
+                // Fetch all labels
                 val labels = withContext(Dispatchers.IO) {
                     repository.getAllLabels().value ?: emptyList()
                 }
 
-                withContext(Dispatchers.Main) {
+                // Safe context check after background work
+                if (!isAdded) {
                     loadingDialog.dismiss()
+                    return@launch
+                }
 
-                    if (labels.isEmpty()) {
-                        // No labels available, show dialog to create one
-                        AlertDialog.Builder(requireContext())
-                            .setTitle(R.string.select_labels)
-                            .setMessage("No labels available. Create a label first.")
-                            .setPositiveButton(R.string.action_done) { dialog, _ ->
-                                dialog.dismiss()
-                            }
-                            .setNeutralButton(R.string.action_new_label) { _, _ ->
-                                showNewLabelDialog()
-                            }
-                            .show()
-                    } else {
-                        displayLabelsSelectionDialog(labels)
-                    }
+                loadingDialog.dismiss()
+
+                if (labels.isEmpty()) {
+                    // No labels available, show dialog to create one
+                    AlertDialog.Builder(requireContext())
+                        .setTitle(R.string.select_labels)
+                        .setMessage("No labels available. Create a label first.")
+                        .setPositiveButton(R.string.action_done) { dialog, _ ->
+                            dialog.dismiss()
+                        }
+                        .setNeutralButton(R.string.action_new_label) { _, _ ->
+                            showNewLabelDialog()
+                        }
+                        .show()
+                } else {
+                    displayLabelsSelectionDialog(labels)
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
+                Log.e("AddEditNote", "Error loading labels", e)
+                if (isAdded && loadingDialog.isShowing) {
                     loadingDialog.dismiss()
-                    Snackbar.make(requireView(), "Failed to load labels", Snackbar.LENGTH_SHORT).show()
+                    Snackbar.make(requireView(), "Failed to load labels: ${e.message}", Snackbar.LENGTH_SHORT).show()
                 }
             }
         }
@@ -249,40 +259,51 @@ class AddEditNoteFragment : Fragment() {
             return
         }
 
-        // Get any existing label associations for this note - doing this synchronously
-        val associatedLabels = runBlocking {
-            withContext(Dispatchers.IO) {
-                repository.getNoteWithLabels(noteId).value?.labels ?: emptyList()
-            }
-        }
+        // Get any existing label associations for this note
+        coroutineScope.launch {
+            try {
+                val noteWithLabels = withContext(Dispatchers.IO) {
+                    repository.getNoteWithLabels(noteId).value
+                }
 
-        // Get the IDs of labels already associated with this note
-        val associatedLabelIds = associatedLabels.map { it.id }
+                if (!isAdded) return@launch
 
-        // Create the checkbox items
-        val labelNames = allLabels.map { it.name }.toTypedArray()
-        val checkedItems = allLabels.map { label ->
-            associatedLabelIds.contains(label.id)
-        }.toBooleanArray()
+                val associatedLabels = noteWithLabels?.labels ?: emptyList()
 
-        // Show the dialog
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.select_labels)
-            .setMultiChoiceItems(labelNames, checkedItems) { _, position, isChecked ->
-                val labelId = allLabels[position].id
-                if (isChecked) {
-                    viewModel.addLabelToNote(labelId)
-                } else {
-                    viewModel.removeLabelFromNote(labelId)
+                // Get the IDs of labels already associated with this note
+                val associatedLabelIds = associatedLabels.map { it.id }
+
+                // Create the checkbox items
+                val labelNames = allLabels.map { it.name }.toTypedArray()
+                val checkedItems = allLabels.map { label ->
+                    associatedLabelIds.contains(label.id)
+                }.toBooleanArray()
+
+                // Show the dialog
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(R.string.select_labels)
+                    .setMultiChoiceItems(labelNames, checkedItems) { _, position, isChecked ->
+                        val labelId = allLabels[position].id
+                        if (isChecked) {
+                            viewModel.addLabelToNote(labelId)
+                        } else {
+                            viewModel.removeLabelFromNote(labelId)
+                        }
+                    }
+                    .setPositiveButton(R.string.action_done) { dialog, _ ->
+                        dialog.dismiss()
+                    }
+                    .setNeutralButton(R.string.action_new_label) { _, _ ->
+                        showNewLabelDialog()
+                    }
+                    .show()
+            } catch (e: Exception) {
+                Log.e("AddEditNote", "Error displaying labels dialog", e)
+                if (isAdded) {
+                    Snackbar.make(requireView(), "Error displaying labels", Snackbar.LENGTH_SHORT).show()
                 }
             }
-            .setPositiveButton(R.string.action_done) { dialog, _ ->
-                dialog.dismiss()
-            }
-            .setNeutralButton(R.string.action_new_label) { _, _ ->
-                showNewLabelDialog()
-            }
-            .show()
+        }
     }
 
     private fun showNewLabelDialog() {
