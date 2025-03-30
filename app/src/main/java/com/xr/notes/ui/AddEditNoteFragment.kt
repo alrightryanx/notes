@@ -154,7 +154,16 @@ class AddEditNoteFragment : Fragment() {
         }
 
         isSaving = true // Set the flag to prevent multiple saves
-        viewModel.saveNote(content, isEncrypted)
+        val job = viewModel.saveNote(content, isEncrypted)
+        job.invokeOnCompletion {
+            // Make sure we're back on the main thread
+            activity?.runOnUiThread {
+                isSaving = false
+                if (viewModel.saveComplete.value == true) {
+                    findNavController().navigateUp()
+                }
+            }
+        }
     }
 
     private fun saveNoteAndShowLabels() {

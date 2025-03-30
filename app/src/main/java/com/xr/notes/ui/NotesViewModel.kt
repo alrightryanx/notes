@@ -53,6 +53,12 @@ class NotesViewModel @Inject constructor(
             _notesWithLabels.removeSource(notesWithLabelsSource!!)
         }
 
+        // First, remove any existing source to avoid duplicates
+        if (notesWithLabelsSource != null && activeObservers.contains("notesWithLabels")) {
+            _notesWithLabels.removeSource(notesWithLabelsSource!!)
+            activeObservers.remove("notesWithLabels")
+        }
+
         // Get fresh source
         notesWithLabelsSource = repository.getAllNotesWithLabels()
 
@@ -61,6 +67,7 @@ class NotesViewModel @Inject constructor(
             _notesWithLabels.value = applySortOrder(notesWithLabels, prefManager.getSortOrder())
             updateFilteredNotes()
         }
+        activeObservers.add("notesWithLabels")
 
         // Add active labels observer if we haven't already
         if (!activeObservers.contains("activeLabels")) {

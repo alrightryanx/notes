@@ -48,7 +48,9 @@ class NotesRepository(
             val noteToInsert = note.copy(content = content)
             val id = noteDao.insert(noteToInsert)
             Log.d("NotesRepository", "Inserted note with ID: $id, content: ${note.content.take(20)}...")
-            id
+
+            // Make sure this ID is returned correctly
+            return@withContext id
         } catch (e: Exception) {
             Log.e("NotesRepository", "Error inserting note", e)
             throw e
