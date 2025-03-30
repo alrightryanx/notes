@@ -46,6 +46,15 @@ interface NoteDao {
     @Query("DELETE FROM notes")
     suspend fun deleteAllNotes()
 
+    @Query("SELECT * FROM notes ORDER BY content DESC")
+    fun getAllNotesSortedByTitleDesc(): LiveData<List<Note>>
+
+    @Query("SELECT * FROM notes ORDER BY createdAt ASC")
+    fun getAllNotesSortedByDateCreatedAsc(): LiveData<List<Note>>
+
+    @Query("SELECT * FROM notes ORDER BY modifiedAt ASC")
+    fun getAllNotesSortedByDateModifiedAsc(): LiveData<List<Note>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertNoteLabelCrossRef(crossRef: NoteLabelCrossRef)
 

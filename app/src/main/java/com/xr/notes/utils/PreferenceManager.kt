@@ -28,8 +28,11 @@ class AppPreferenceManager(context: Context) {
 
         // Sort options
         const val SORT_TITLE_ASC = "title_asc"
+        const val SORT_TITLE_DESC = "title_desc" // Add this
         const val SORT_DATE_CREATED_DESC = "date_created_desc"
+        const val SORT_DATE_CREATED_ASC = "date_created_asc" // Add this
         const val SORT_DATE_MODIFIED_DESC = "date_modified_desc"
+        const val SORT_DATE_MODIFIED_ASC = "date_modified_asc" // Add this
 
         // Backup frequency options
         const val BACKUP_DAILY = "daily"

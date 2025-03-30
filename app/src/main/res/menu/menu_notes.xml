@@ -11,19 +11,28 @@
 
     <item
         android:id="@+id/action_sort"
-        android:icon="@drawable/baseline_tune_24"
+        android:icon="@drawable/baseline_filter_list_24"
         android:title="@string/action_sort"
         app:showAsAction="ifRoom">
         <menu>
             <item
-                android:id="@+id/action_sort_title"
-                android:title="@string/action_sort_by_title" />
+                android:id="@+id/action_sort_title_az"
+                android:title="@string/action_sort_by_title_az" />
             <item
-                android:id="@+id/action_sort_date_created"
-                android:title="@string/action_sort_by_date_created" />
+                android:id="@+id/action_sort_title_za"
+                android:title="@string/action_sort_by_title_za" />
             <item
-                android:id="@+id/action_sort_date_modified"
-                android:title="@string/action_sort_by_date_modified" />
+                android:id="@+id/action_sort_date_created_newest"
+                android:title="@string/action_sort_by_date_created_newest" />
+            <item
+                android:id="@+id/action_sort_date_created_oldest"
+                android:title="@string/action_sort_by_date_created_oldest" />
+            <item
+                android:id="@+id/action_sort_date_modified_newest"
+                android:title="@string/action_sort_by_date_modified_newest" />
+            <item
+                android:id="@+id/action_sort_date_modified_oldest"
+                android:title="@string/action_sort_by_date_modified_oldest" />
         </menu>
     </item>
 

@@ -69,8 +69,11 @@ class LabelNotesViewModel @Inject constructor(
         _currentNotes.value?.let { notes ->
             val sortedNotes = when (sortOrder) {
                 AppPreferenceManager.SORT_TITLE_ASC -> notes.sortedBy { it.title }
+                AppPreferenceManager.SORT_TITLE_DESC -> notes.sortedByDescending { it.title }
                 AppPreferenceManager.SORT_DATE_CREATED_DESC -> notes.sortedByDescending { it.createdAt }
+                AppPreferenceManager.SORT_DATE_CREATED_ASC -> notes.sortedBy { it.createdAt }
                 AppPreferenceManager.SORT_DATE_MODIFIED_DESC -> notes.sortedByDescending { it.modifiedAt }
+                AppPreferenceManager.SORT_DATE_MODIFIED_ASC -> notes.sortedBy { it.modifiedAt }
                 else -> notes.sortedByDescending { it.modifiedAt }
             }
             _currentNotes.value = sortedNotes

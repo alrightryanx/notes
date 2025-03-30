@@ -72,6 +72,12 @@ class NotesRepository(
         noteDao.deleteAllNotes()
     }
 
+    fun getAllNotesSortedByTitleDesc(): LiveData<List<Note>> = noteDao.getAllNotesSortedByTitleDesc()
+
+    fun getAllNotesSortedByDateCreatedAsc(): LiveData<List<Note>> = noteDao.getAllNotesSortedByDateCreatedAsc()
+
+    fun getAllNotesSortedByDateModifiedAsc(): LiveData<List<Note>> = noteDao.getAllNotesSortedByDateModifiedAsc()
+
     // Label operations
     fun getAllLabels(): LiveData<List<Label>> = labelDao.getAllLabels()
 

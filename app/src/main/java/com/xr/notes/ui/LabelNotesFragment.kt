@@ -135,16 +135,28 @@ class LabelNotesFragment : Fragment(), NotesAdapter.NoteItemListener {
     @Suppress("DEPRECATION")
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            R.id.action_sort_title -> {
+            R.id.action_sort_title_az -> {
                 viewModel.setSortOrder(AppPreferenceManager.SORT_TITLE_ASC)
                 true
             }
-            R.id.action_sort_date_created -> {
+            R.id.action_sort_title_za -> {
+                viewModel.setSortOrder(AppPreferenceManager.SORT_TITLE_DESC)
+                true
+            }
+            R.id.action_sort_date_created_newest -> {
                 viewModel.setSortOrder(AppPreferenceManager.SORT_DATE_CREATED_DESC)
                 true
             }
-            R.id.action_sort_date_modified -> {
+            R.id.action_sort_date_created_oldest -> {
+                viewModel.setSortOrder(AppPreferenceManager.SORT_DATE_CREATED_ASC)
+                true
+            }
+            R.id.action_sort_date_modified_newest -> {
                 viewModel.setSortOrder(AppPreferenceManager.SORT_DATE_MODIFIED_DESC)
+                true
+            }
+            R.id.action_sort_date_modified_oldest -> {
+                viewModel.setSortOrder(AppPreferenceManager.SORT_DATE_MODIFIED_ASC)
                 true
             }
             R.id.action_select_all -> {

@@ -17,15 +17,19 @@
     <string name="action_encrypt">Encrypt</string>
     <string name="action_decrypt">Decrypt</string>
     <string name="action_sort">Sort</string>
-    <string name="action_sort_by_title">Sort by Title</string>
-    <string name="action_sort_by_date_created">Sort by Date Created</string>
-    <string name="action_sort_by_date_modified">Sort by Date Modified</string>
     <string name="action_select_all">Select All</string>
     <string name="action_delete_selected">Delete Selected</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_create">Create</string>
     <string name="action_done">Done</string>
     <string name="action_new_label">New Label</string>
+
+    <string name="action_sort_by_title_az">Sort by Title (A-Z)</string>
+    <string name="action_sort_by_title_za">Sort by Title (Z-A)</string>
+    <string name="action_sort_by_date_created_newest">Sort by Date Created (Newest)</string>
+    <string name="action_sort_by_date_created_oldest">Sort by Date Created (Oldest)</string>
+    <string name="action_sort_by_date_modified_newest">Sort by Date Modified (Newest)</string>
+    <string name="action_sort_by_date_modified_oldest">Sort by Date Modified (Oldest)</string>
 
     <!-- Notes -->
     <string name="add_new_note">Add New Note</string>
