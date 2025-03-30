@@ -1,5 +1,6 @@
 package com.xr.notes.ui
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
@@ -15,6 +16,7 @@ import com.xr.notes.utils.BackupManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -32,27 +34,82 @@ class NotesViewModel @Inject constructor(
     // Exposed LiveData for the UI
     val notesWithLabels: LiveData<List<NoteWithLabels>> = _filteredNotes
 
+    // Source for notes with labels
+    private var notesWithLabelsSource: LiveData<List<NoteWithLabels>>? = null
+    // To keep track of observers we've added
+    private val activeObservers = mutableSetOf<Any>()
+
     // For selection mode
     private var inSelectionMode = false
     private val selectedNoteIds = mutableSetOf<Long>()
 
     init {
-        // Load notes with their labels
-        val notesWithLabelsSource = repository.getAllNotesWithLabels()
-        _notesWithLabels.addSource(notesWithLabelsSource) { notesWithLabels ->
-            // Debug log
-            android.util.Log.d("NotesViewModel", "Received ${notesWithLabels.size} notes from repository")
+        Log.d("NotesViewModel", "Initializing")
+        setupObservers()
+    }
+
+    private fun setupObservers() {
+        Log.d("NotesViewModel", "Setting up observers")
+
+        // First, check if we already have a source
+        val existingSource = notesWithLabelsSource
+        if (existingSource != null) {
+            // We already have a source, don't remove it or add again
+            Log.d("NotesViewModel", "Source already exists, skipping setup")
+            return
+        }
+
+        // Get fresh source
+        notesWithLabelsSource = repository.getAllNotesWithLabels()
+
+        // Add new source
+        _notesWithLabels.addSource(notesWithLabelsSource!!) { notesWithLabels ->
+            Log.d("NotesViewModel", "Received ${notesWithLabels.size} notes from repository")
             _notesWithLabels.value = applySortOrder(notesWithLabels, prefManager.getSortOrder())
             updateFilteredNotes()
         }
 
-        // Listen for active labels changes
-        _filteredNotes.addSource(activeLabelsStore.activeLabelsIds) { _ ->
-            updateFilteredNotes()
+        // Add active labels observer if we haven't already
+        if (!activeObservers.contains("activeLabels")) {
+            _filteredNotes.addSource(activeLabelsStore.activeLabelsIds) { activeLabelsIds ->
+                Log.d("NotesViewModel", "Active labels changed: ${activeLabelsIds.size}")
+                updateFilteredNotes()
+            }
+            activeObservers.add("activeLabels")
         }
 
-        // Listen for search query changes
-        _filteredNotes.addSource(_searchQuery) { _ ->
+        // Add search query observer if we haven't already
+        if (!activeObservers.contains("searchQuery")) {
+            _filteredNotes.addSource(_searchQuery) { query ->
+                Log.d("NotesViewModel", "Search query changed: $query")
+                updateFilteredNotes()
+            }
+            activeObservers.add("searchQuery")
+        }
+    }
+
+    // Force a refresh of the notes list
+    fun forceRefreshNotes() {
+        Log.d("NotesViewModel", "Force refreshing notes")
+
+        // Don't call setupObservers again - we just need to trigger updates
+
+        // Manually trigger repository to update its LiveData
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    // This is a workaround to force Room to re-query
+                    val dummyNote = Note(id = -999L, content = "Dummy")
+                    val inserted = repository.insertNote(dummyNote)
+                    repository.deleteNote(dummyNote.copy(id = inserted))
+                }
+            } catch (e: Exception) {
+                Log.e("NotesViewModel", "Error in force refresh", e)
+            }
+        }
+
+        // Also manually trigger an update if we already have notes
+        _notesWithLabels.value?.let {
             updateFilteredNotes()
         }
     }
@@ -62,11 +119,11 @@ class NotesViewModel @Inject constructor(
         val activeLabelsIds = activeLabelsStore.getActiveLabels()
         val searchQuery = _searchQuery.value ?: ""
 
-        // Debug
-        android.util.Log.d("NotesViewModel", "Updating filtered notes. Total notes: ${allNotes.size}, Active labels: ${activeLabelsIds.size}")
+        Log.d("NotesViewModel", "Updating filtered notes. Total notes: ${allNotes.size}, " +
+                "Active labels: ${activeLabelsIds.size}, Search query: '$searchQuery'")
 
-        // Always show all notes initially, no filtering by labels until explicitly requested
-        val notesToShow = if (searchQuery.isEmpty()) {
+        // Just show all notes for now, no filtering by labels
+        val filteredBySearch = if (searchQuery.isEmpty()) {
             allNotes
         } else {
             allNotes.filter { noteWithLabels ->
@@ -74,7 +131,8 @@ class NotesViewModel @Inject constructor(
             }
         }
 
-        _filteredNotes.value = notesToShow
+        Log.d("NotesViewModel", "After filtering, showing ${filteredBySearch.size} notes")
+        _filteredNotes.value = filteredBySearch
     }
 
     private fun applySortOrder(notes: List<NoteWithLabels>, sortOrder: String): List<NoteWithLabels> {
@@ -118,7 +176,7 @@ class NotesViewModel @Inject constructor(
                         repository.deleteNote(note)
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("NotesViewModel", "Error deleting note $noteId", e)
+                    Log.e("NotesViewModel", "Error deleting note $noteId", e)
                 }
             }
         }
@@ -137,7 +195,7 @@ class NotesViewModel @Inject constructor(
             try {
                 repository.deleteNote(note)
             } catch (e: Exception) {
-                android.util.Log.e("NotesViewModel", "Error deleting note ${note.id}", e)
+                Log.e("NotesViewModel", "Error deleting note ${note.id}", e)
             }
         }
     }
@@ -155,7 +213,7 @@ class NotesViewModel @Inject constructor(
                 // Create the backup
                 backupManager.createBackup(notes, labels, crossRefs)
             } catch (e: Exception) {
-                android.util.Log.e("NotesViewModel", "Error creating backup", e)
+                Log.e("NotesViewModel", "Error creating backup", e)
             }
         }
     }

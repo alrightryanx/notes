@@ -1,5 +1,6 @@
 package com.xr.notes.ui
 
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -32,6 +33,7 @@ class LabelsAdapter(private val listener: LabelItemListener) :
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        Log.d("LabelsAdapter", "Creating view holder for type: $viewType")
         return when (viewType) {
             VIEW_TYPE_ALL -> {
                 val view = LayoutInflater.from(parent.context)
@@ -48,6 +50,7 @@ class LabelsAdapter(private val listener: LabelItemListener) :
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val labelItem = getItem(position)
+        Log.d("LabelsAdapter", "Binding item at position $position: ${labelItem.name}, isActive: ${labelItem.isActive}")
         when (holder) {
             is AllLabelViewHolder -> holder.bind(labelItem)
             is NormalLabelViewHolder -> holder.bind(labelItem)
@@ -89,6 +92,7 @@ class LabelsAdapter(private val listener: LabelItemListener) :
         fun bind(labelItem: LabelItem) {
             textLabelName.text = labelItem.name
             checkboxLabel.isChecked = labelItem.isActive
+            Log.d("LabelsAdapter", "Bound ALL label, isActive: ${labelItem.isActive}")
         }
     }
 
@@ -147,6 +151,7 @@ class LabelsAdapter(private val listener: LabelItemListener) :
         fun bind(labelItem: LabelItem) {
             textLabelName.text = labelItem.name
             checkboxLabel.isChecked = labelItem.isActive
+            Log.d("LabelsAdapter", "Bound label ${labelItem.name}, isActive: ${labelItem.isActive}")
 
             // If the label has a color, apply it
             labelItem.label?.let { label ->
@@ -174,6 +179,7 @@ class LabelsAdapter(private val listener: LabelItemListener) :
         }
     }
 }
+
 
 // Data class to represent items in the labels list
 data class LabelItem(

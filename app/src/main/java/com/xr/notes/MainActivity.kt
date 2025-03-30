@@ -1,6 +1,7 @@
 package com.xr.notes
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
@@ -31,6 +32,8 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        Log.d("MainActivity", "onCreate called")
+
         // Apply theme from preferences before setting content view
         prefManager.applyTheme()
         // Handle window insets properly
@@ -45,16 +48,26 @@ class MainActivity : AppCompatActivity() {
         // Setup ActionBar with NavController
         setupActionBarWithNavController(navController)
 
-        // Initialize active labels with a slight delay to ensure repository is ready
+        // Initialize with a delay to ensure DB is ready
         lifecycleScope.launch {
-            delay(500)  // Short delay to ensure database is initialized
+            delay(1000) // Longer delay to ensure DB is fully initialized
             initializeActiveLabels()
         }
     }
 
     private fun initializeActiveLabels() {
-        android.util.Log.d("MainActivity", "Initializing active labels")
-        sharedLabelViewModel.initializeActiveLabels()
+        Log.d("MainActivity", "Initializing active labels")
+
+        // Ensure we start with all labels active
+        lifecycleScope.launch {
+            // First, initialize the shared view model
+            sharedLabelViewModel.initializeActiveLabels()
+
+            // Then add a debug log after a short delay to check active labels
+            delay(500)
+            val activeLabels = activeLabelsStore.getActiveLabels()
+            Log.d("MainActivity", "After initialization, active labels count: ${activeLabels.size}")
+        }
     }
 
     override fun onSupportNavigateUp(): Boolean {

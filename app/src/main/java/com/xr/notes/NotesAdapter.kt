@@ -1,5 +1,7 @@
 package com.xr.notes
 
+import android.annotation.SuppressLint
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -37,6 +39,7 @@ class NotesAdapter(
 
     override fun onBindViewHolder(holder: NoteViewHolder, position: Int) {
         val noteWithLabels = getItem(position)
+        Log.d("NotesAdapter", "Binding note at position $position: ${noteWithLabels.note.title}")
         holder.bind(noteWithLabels)
     }
 
@@ -75,7 +78,7 @@ class NotesAdapter(
         private val titleTextView: TextView = itemView.findViewById(R.id.textNoteTitle)
         private val summaryTextView: TextView = itemView.findViewById(R.id.textNoteSummary)
         private val dateTextView: TextView = itemView.findViewById(R.id.textNoteDate)
-        private val labelsTextView: TextView = itemView.findViewById(R.id.textNoteLabels) // Add this to your layout
+        private val labelsTextView: TextView = itemView.findViewById(R.id.textNoteLabels)
 
         init {
             // Set text size from preferences
@@ -145,14 +148,18 @@ class NotesAdapter(
                 val labelNames = labels.joinToString(", ") { it.name }
                 labelsTextView.text = labelNames
                 labelsTextView.visibility = View.VISIBLE
+                Log.d("NotesAdapter", "Note ${note.title} has labels: $labelNames")
             } else {
                 labelsTextView.visibility = View.GONE
+                Log.d("NotesAdapter", "Note ${note.title} has no labels")
             }
 
             // Encrypted note indicator
             if (note.isEncrypted) {
                 // Add a lock icon or indicator
-                // This would be implemented with a separate view in the layout
+                titleTextView.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.baseline_lock_24, 0)
+            } else {
+                titleTextView.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             }
         }
 
@@ -176,6 +183,7 @@ class NotesAdapter(
             return oldItem.note.id == newItem.note.id
         }
 
+        @SuppressLint("DiffUtilEquals")
         override fun areContentsTheSame(oldItem: NoteWithLabels, newItem: NoteWithLabels): Boolean {
             // Compare note content
             val notesAreSame = oldItem.note.content == newItem.note.content &&

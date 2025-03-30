@@ -10,7 +10,9 @@ import com.xr.notes.models.Label
 import com.xr.notes.repo.NotesRepository
 import com.xr.notes.utils.ActiveLabelsStore
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -25,15 +27,37 @@ class LabelsViewModel @Inject constructor(
     private val _activeLabels = MutableLiveData<Set<Long>>(setOf())
     val activeLabels: LiveData<Set<Long>> = _activeLabels
 
+    // Source for all labels
+    private var allLabelsSource: LiveData<List<Label>>? = null
+
     init {
+        Log.d("LabelsViewModel", "Initializing")
+
         // Initialize with active labels from the store
         _activeLabels.value = activeLabelsStore.getActiveLabels()
 
-        // Add direct source to observe all labels
-        val allLabelsSource = repository.getAllLabels()
+        setupObservers()
 
-        _labelItems.addSource(allLabelsSource) { labels ->
-            Log.d("LabelsViewModel", "Retrieved ${labels.size} labels from repository")
+        // Initial manual refresh to ensure we have data
+        viewModelScope.launch {
+            forceRefreshLabels()
+        }
+    }
+
+    private fun setupObservers() {
+        Log.d("LabelsViewModel", "Setting up observers")
+
+        // Remove previous source if it exists
+        if (allLabelsSource != null) {
+            _labelItems.removeSource(allLabelsSource!!)
+        }
+
+        // Get fresh labels source
+        allLabelsSource = repository.getAllLabels()
+
+        // Add new source
+        _labelItems.addSource(allLabelsSource!!) { labels ->
+            Log.d("LabelsViewModel", "Repository returned ${labels.size} labels")
             updateLabelItems(labels)
         }
 
@@ -41,22 +65,37 @@ class LabelsViewModel @Inject constructor(
         _labelItems.addSource(activeLabelsStore.activeLabelsIds) { activeLabelsIds ->
             Log.d("LabelsViewModel", "Active labels changed: ${activeLabelsIds.size}")
             _activeLabels.value = activeLabelsIds
+
             // Only update if we have labels data
-            repository.getAllLabels().value?.let { labels ->
+            allLabelsSource?.value?.let { labels ->
                 updateLabelItems(labels)
             }
         }
+    }
 
-        // Initial load attempt - sometimes repository isn't ready in init
+    // Public function to force a refresh of labels
+    fun forceRefreshLabels() {
+        Log.d("LabelsViewModel", "Force refreshing labels")
+
+        // Refresh observers
+        setupObservers()
+
+        // Manually query if we have a source
+        allLabelsSource?.value?.let { labels ->
+            updateLabelItems(labels)
+        }
+
+        // Workaround to force Room to re-query
         viewModelScope.launch {
             try {
-                val labels = repository.getAllLabels().value ?: emptyList()
-                if (labels.isNotEmpty()) {
-                    Log.d("LabelsViewModel", "Initial load found ${labels.size} labels")
-                    updateLabelItems(labels)
+                withContext(Dispatchers.IO) {
+                    // This creates a temporary label to force a refresh
+                    val dummyLabel = Label(id = -999L, name = "Dummy")
+                    val insertedId = repository.insertLabel(dummyLabel)
+                    repository.deleteLabel(dummyLabel.copy(id = insertedId))
                 }
             } catch (e: Exception) {
-                Log.e("LabelsViewModel", "Error in initial labels load", e)
+                Log.e("LabelsViewModel", "Error in force refresh", e)
             }
         }
     }
@@ -65,12 +104,14 @@ class LabelsViewModel @Inject constructor(
         val items = mutableListOf<LabelItem>()
         val activeLabelsSet = _activeLabels.value ?: setOf()
 
+        Log.d("LabelsViewModel", "Updating label items with ${labels.size} labels and ${activeLabelsSet.size} active labels")
+
         // Add "ALL" label first
         val allActive = labels.isNotEmpty() && labels.all { activeLabelsSet.contains(it.id) }
         items.add(LabelItem("ALL", isSpecial = true, isActive = allActive))
 
-        // Add regular labels
-        items.addAll(labels.map { label ->
+        // Add regular labels, sorted alphabetically by name
+        items.addAll(labels.sortedBy { it.name }.map { label ->
             LabelItem(
                 name = label.name,
                 label = label,
@@ -78,8 +119,8 @@ class LabelsViewModel @Inject constructor(
             )
         })
 
-        _labelItems.value = items
         Log.d("LabelsViewModel", "Updated label items: ${items.size} items")
+        _labelItems.value = items
     }
 
     fun createLabel(name: String) {
@@ -91,6 +132,9 @@ class LabelsViewModel @Inject constructor(
 
                 // Automatically add new label to active set
                 activeLabelsStore.addActiveLabel(labelId)
+
+                // Force refresh to show the new label immediately
+                forceRefreshLabels()
             } catch (e: Exception) {
                 Log.e("LabelsViewModel", "Error creating label", e)
             }
@@ -104,6 +148,9 @@ class LabelsViewModel @Inject constructor(
                 val updatedLabel = label.copy(name = name)
                 repository.updateLabel(updatedLabel)
                 Log.d("LabelsViewModel", "Updated label $labelId")
+
+                // Force refresh to show the updated label immediately
+                forceRefreshLabels()
             } catch (e: Exception) {
                 Log.e("LabelsViewModel", "Error updating label", e)
             }
@@ -118,6 +165,9 @@ class LabelsViewModel @Inject constructor(
 
                 // Remove from active labels if present
                 activeLabelsStore.removeActiveLabel(label.id)
+
+                // Force refresh to update the list immediately
+                forceRefreshLabels()
             } catch (e: Exception) {
                 Log.e("LabelsViewModel", "Error deleting label", e)
             }
@@ -125,7 +175,7 @@ class LabelsViewModel @Inject constructor(
     }
 
     fun toggleAllLabelsActive(isActive: Boolean) {
-        val allLabels = repository.getAllLabels().value ?: return
+        val allLabels = allLabelsSource?.value ?: return
         Log.d("LabelsViewModel", "Toggling all ${allLabels.size} labels active: $isActive")
 
         if (isActive) {
