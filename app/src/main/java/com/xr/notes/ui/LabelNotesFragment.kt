@@ -19,6 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.xr.notes.NotesAdapter
+import com.xr.notes.models.Note
 import com.xr.notes.utils.AppPreferenceManager
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -26,7 +27,8 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class LabelNotesFragment : Fragment(), NotesAdapter.NoteItemListener {
 
-    private val args: LabelNotesFragmentArgs by navArgs()
+    // Define the args class explicitly to resolve the "Cannot infer type" issue
+    private val args by navArgs<LabelNotesFragmentArgs>()
     private val viewModel: LabelNotesViewModel by viewModels()
 
     @Inject

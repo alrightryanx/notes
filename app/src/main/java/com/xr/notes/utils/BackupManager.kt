@@ -5,6 +5,8 @@ package com.xr.notes.utils
 import android.content.Context
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.xr.notes.models.Label
 import com.xr.notes.models.Note
 import com.xr.notes.models.NoteLabelCrossRef
