@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupActionBarWithNavController
@@ -11,6 +12,8 @@ import com.xr.notes.ui.SharedLabelViewModel
 import com.xr.notes.utils.ActiveLabelsStore
 import com.xr.notes.utils.AppPreferenceManager
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -42,14 +45,15 @@ class MainActivity : AppCompatActivity() {
         // Setup ActionBar with NavController
         setupActionBarWithNavController(navController)
 
-        // Initialize active labels
-        if (savedInstanceState == null) {
-            // If it's the first launch, make all labels active by default
+        // Initialize active labels with a slight delay to ensure repository is ready
+        lifecycleScope.launch {
+            delay(500)  // Short delay to ensure database is initialized
             initializeActiveLabels()
         }
     }
 
     private fun initializeActiveLabels() {
+        android.util.Log.d("MainActivity", "Initializing active labels")
         sharedLabelViewModel.initializeActiveLabels()
     }
 

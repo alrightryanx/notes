@@ -38,10 +38,12 @@ class NotesViewModel @Inject constructor(
 
     init {
         // Load notes with their labels
-        _notesWithLabels.addSource(repository.getAllNotesWithLabels()) { notesWithLabels ->
+        val notesWithLabelsSource = repository.getAllNotesWithLabels()
+        _notesWithLabels.addSource(notesWithLabelsSource) { notesWithLabels ->
+            // Debug log
+            android.util.Log.d("NotesViewModel", "Received ${notesWithLabels.size} notes from repository")
             _notesWithLabels.value = applySortOrder(notesWithLabels, prefManager.getSortOrder())
-            // Initially show all notes without filtering
-            _filteredNotes.value = _notesWithLabels.value
+            updateFilteredNotes()
         }
 
         // Listen for active labels changes
@@ -60,34 +62,19 @@ class NotesViewModel @Inject constructor(
         val activeLabelsIds = activeLabelsStore.getActiveLabels()
         val searchQuery = _searchQuery.value ?: ""
 
-        // If no active labels, show all notes
-        if (activeLabelsIds.isEmpty()) {
-            _filteredNotes.value = if (searchQuery.isEmpty()) {
-                allNotes
-            } else {
-                allNotes.filter { noteWithLabels ->
-                    noteWithLabels.note.content.contains(searchQuery, ignoreCase = true)
-                }
-            }
-            return
-        }
+        // Debug
+        android.util.Log.d("NotesViewModel", "Updating filtered notes. Total notes: ${allNotes.size}, Active labels: ${activeLabelsIds.size}")
 
-        // Filter notes by active labels
-        val filteredByLabels = allNotes.filter { noteWithLabels ->
-            // Show notes that have at least one active label
-            noteWithLabels.labels.any { label ->
-                activeLabelsIds.contains(label.id)
-            }
-        }
-
-        // Apply search filter if needed
-        _filteredNotes.value = if (searchQuery.isEmpty()) {
-            filteredByLabels
+        // Always show all notes initially, no filtering by labels until explicitly requested
+        val notesToShow = if (searchQuery.isEmpty()) {
+            allNotes
         } else {
-            filteredByLabels.filter { noteWithLabels ->
+            allNotes.filter { noteWithLabels ->
                 noteWithLabels.note.content.contains(searchQuery, ignoreCase = true)
             }
         }
+
+        _filteredNotes.value = notesToShow
     }
 
     private fun applySortOrder(notes: List<NoteWithLabels>, sortOrder: String): List<NoteWithLabels> {
@@ -131,7 +118,7 @@ class NotesViewModel @Inject constructor(
                         repository.deleteNote(note)
                     }
                 } catch (e: Exception) {
-                    // Log error if needed
+                    android.util.Log.e("NotesViewModel", "Error deleting note $noteId", e)
                 }
             }
         }
@@ -150,7 +137,7 @@ class NotesViewModel @Inject constructor(
             try {
                 repository.deleteNote(note)
             } catch (e: Exception) {
-                // Log error if needed
+                android.util.Log.e("NotesViewModel", "Error deleting note ${note.id}", e)
             }
         }
     }
@@ -168,7 +155,7 @@ class NotesViewModel @Inject constructor(
                 // Create the backup
                 backupManager.createBackup(notes, labels, crossRefs)
             } catch (e: Exception) {
-                // Log error if needed
+                android.util.Log.e("NotesViewModel", "Error creating backup", e)
             }
         }
     }

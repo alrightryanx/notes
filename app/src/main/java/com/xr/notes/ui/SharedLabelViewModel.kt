@@ -26,16 +26,32 @@ class SharedLabelViewModel @Inject constructor(
     /**
      * Initialize active labels - at the start we want all labels to be active
      */
-    internal fun initializeActiveLabels() {
-        // Add logging to verify this is working
-        Log.d("MainActivity", "Initializing active labels")
+    fun initializeActiveLabels() {
+        Log.d("SharedLabelViewModel", "Initializing active labels")
         viewModelScope.launch {
-            val labels = repository.getAllLabels().value ?: emptyList()
+            try {
+                // Wait for a moment to ensure repository is initialized
+                kotlinx.coroutines.delay(100)
 
-            // Set all labels as active, even if the list is empty
-            val allLabelIds = labels.map { it.id }.toSet()
-            activeLabelsStore.setActiveLabels(allLabelIds)
-            Log.d("MainActivity", "Found ${labels.size} labels to initialize as active")
+                // Get all labels
+                val labelsLiveData = repository.getAllLabels()
+                val labels = labelsLiveData.value
+
+                if (labels != null && labels.isNotEmpty()) {
+                    // Set all labels as active
+                    val allLabelIds = labels.map { it.id }.toSet()
+                    activeLabelsStore.setActiveLabels(allLabelIds)
+                    Log.d("SharedLabelViewModel", "Found and initialized ${labels.size} labels as active")
+                } else {
+                    // If no labels yet, ensure we're not filtering
+                    activeLabelsStore.clearActiveLabels()
+                    Log.d("SharedLabelViewModel", "No labels found to initialize")
+                }
+            } catch (e: Exception) {
+                Log.e("SharedLabelViewModel", "Error initializing labels", e)
+                // Ensure we're not filtering if there's an error
+                activeLabelsStore.clearActiveLabels()
+            }
         }
     }
 
