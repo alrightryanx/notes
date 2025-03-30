@@ -1,8 +1,5 @@
 package com.xr.notes.ui
 
-// File: app/src/main/java/com/example/notesapp/ui/labels/LabelsFragment.kt
-
-
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.Menu
@@ -128,11 +125,13 @@ class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
             .show()
     }
 
+    @Suppress("DEPRECATION")
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
         inflater.inflate(R.menu.menu_labels, menu)
         super.onCreateOptionsMenu(menu, inflater)
     }
 
+    @Suppress("DEPRECATION")
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_add_label -> {
@@ -144,14 +143,20 @@ class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
     }
 
     override fun onLabelClicked(label: Label) {
-        TODO("Not yet implemented")
+        // Navigate to notes with this label
+        // Create a bundle manually since we don't have the SafeArgs generated classes
+        val bundle = Bundle().apply {
+            putLong("labelId", label.id)
+            putString("labelName", label.name)
+        }
+        findNavController().navigate(R.id.action_labelsFragment_to_labelNotesFragment, bundle)
     }
 
     override fun onLabelEditClicked(label: Label) {
-        TODO("Not yet implemented")
+        showEditLabelDialog(label)
     }
 
     override fun onLabelDeleteClicked(label: Label) {
-        TODO("Not yet implemented")
+        confirmDeleteLabel(label)
     }
 }

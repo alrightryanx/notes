@@ -1,7 +1,5 @@
 package com.xr.notes
 
-// File: app/src/main/java/com/example/notesapp/adapters/NotesAdapter.kt
-
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -13,7 +11,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.xr.notes.models.Note
 import com.xr.notes.utils.AppPreferenceManager
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 class NotesAdapter(
@@ -28,6 +25,7 @@ class NotesAdapter(
         fun onNoteClicked(note: Note)
         fun onNoteSelected(note: Note, isSelected: Boolean)
         fun onSelectionChanged(count: Int)
+        fun onRequestDeleteNote(note: Note) // Added method for direct delete
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): NoteViewHolder {
@@ -101,10 +99,15 @@ class NotesAdapter(
                 if (position != RecyclerView.NO_POSITION) {
                     val note = getItem(position)
                     if (!selectionMode) {
+                        // Start selection mode and select this note
                         selectionMode = true
                         toggleNoteSelection(note)
+                        return@setOnLongClickListener true
+                    } else {
+                        // If already in selection mode, request to delete this note directly
+                        listener.onRequestDeleteNote(note)
+                        return@setOnLongClickListener true
                     }
-                    return@setOnLongClickListener true
                 }
                 return@setOnLongClickListener false
             }

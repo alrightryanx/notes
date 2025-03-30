@@ -8,6 +8,7 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.SearchView
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
@@ -15,6 +16,7 @@ import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.android.material.snackbar.Snackbar
 import com.xr.notes.NotesAdapter
 import com.xr.notes.R
 import com.xr.notes.models.Note
@@ -121,6 +123,15 @@ class LabelNotesFragment : Fragment(), NotesAdapter.NoteItemListener {
     }
 
     @Suppress("DEPRECATION")
+    override fun onPrepareOptionsMenu(menu: Menu) {
+        val inSelectionMode = notesAdapter.isInSelectionMode()
+        menu.findItem(R.id.action_select_all)?.isVisible = inSelectionMode
+        menu.findItem(R.id.action_delete_selected)?.isVisible = inSelectionMode && notesAdapter.getSelectedCount() > 0
+
+        super.onPrepareOptionsMenu(menu)
+    }
+
+    @Suppress("DEPRECATION")
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_sort_title -> {
@@ -135,8 +146,55 @@ class LabelNotesFragment : Fragment(), NotesAdapter.NoteItemListener {
                 viewModel.setSortOrder(AppPreferenceManager.SORT_DATE_MODIFIED_DESC)
                 true
             }
+            R.id.action_select_all -> {
+                if (!notesAdapter.isInSelectionMode()) {
+                    notesAdapter.toggleSelectionMode()
+                }
+                notesAdapter.selectAllNotes()
+                activity?.invalidateOptionsMenu()
+                true
+            }
+            R.id.action_delete_selected -> {
+                deleteSelectedNotes()
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
+    }
+
+    private fun deleteSelectedNotes() {
+        val selectedIds = notesAdapter.getSelectedNoteIds()
+        if (selectedIds.isNotEmpty()) {
+            confirmDeleteNotes(selectedIds)
+        }
+    }
+
+    private fun confirmDeleteNotes(noteIds: List<Long>) {
+        AlertDialog.Builder(requireContext())
+            .setTitle(if (noteIds.size > 1) getString(R.string.confirm_delete, noteIds.size) else getString(R.string.confirm_delete))
+            .setMessage(getString(R.string.confirm_delete_message))
+            .setPositiveButton(R.string.action_delete) { _, _ ->
+                // Delete notes through the ViewModel
+                viewModel.deleteNotes(noteIds)
+
+                // Show confirmation
+                Snackbar.make(
+                    requireView(),
+                    getString(R.string.notes_deleted, noteIds.size),
+                    Snackbar.LENGTH_SHORT
+                ).show()
+
+                // Exit selection mode
+                if (notesAdapter.isInSelectionMode()) {
+                    notesAdapter.toggleSelectionMode()
+                }
+
+                activity?.invalidateOptionsMenu()
+            }
+            .setNegativeButton(R.string.action_cancel) { dialog, _ ->
+                dialog.cancel()
+            }
+            .show()
     }
 
     private fun navigateToAddEditNote(noteId: Long?) {
@@ -158,5 +216,27 @@ class LabelNotesFragment : Fragment(), NotesAdapter.NoteItemListener {
 
     override fun onSelectionChanged(count: Int) {
         activity?.invalidateOptionsMenu()
+    }
+
+    override fun onRequestDeleteNote(note: Note) {
+        // Single note deletion request (from long-press)
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.confirm_delete)
+            .setMessage(R.string.confirm_delete_message)
+            .setPositiveButton(R.string.action_delete) { _, _ ->
+                // Delete the note using the direct delete method
+                viewModel.deleteNote(note)
+
+                // Show confirmation
+                Snackbar.make(
+                    requireView(),
+                    getString(R.string.notes_deleted, 1),
+                    Snackbar.LENGTH_SHORT
+                ).show()
+            }
+            .setNegativeButton(R.string.action_cancel) { dialog, _ ->
+                dialog.cancel()
+            }
+            .show()
     }
 }

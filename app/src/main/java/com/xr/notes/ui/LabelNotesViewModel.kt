@@ -8,7 +8,9 @@ import com.xr.notes.models.Note
 import com.xr.notes.repo.NotesRepository
 import com.xr.notes.utils.AppPreferenceManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -22,6 +24,7 @@ class LabelNotesViewModel @Inject constructor(
     val notesWithLabel: LiveData<List<Note>> = _notesWithLabel
 
     private val _searchQuery = MutableLiveData<String>("")
+    private val _currentNotes = MutableLiveData<List<Note>>(listOf())
 
     fun setLabelId(id: Long) {
         labelId = id
@@ -32,6 +35,7 @@ class LabelNotesViewModel @Inject constructor(
         viewModelScope.launch {
             repository.getLabelWithNotes(labelId).observeForever { labelWithNotes ->
                 val notes = labelWithNotes?.notes ?: emptyList()
+                _currentNotes.value = notes
                 updateNotesList(notes)
             }
         }
@@ -52,7 +56,7 @@ class LabelNotesViewModel @Inject constructor(
         _searchQuery.value = query
 
         // Trigger filtering of current list
-        _notesWithLabel.value?.let { notes ->
+        _currentNotes.value?.let { notes ->
             _notesWithLabel.value = notes.filter { note ->
                 note.content.contains(query, ignoreCase = true)
             }
@@ -62,12 +66,55 @@ class LabelNotesViewModel @Inject constructor(
     fun setSortOrder(sortOrder: String) {
         prefManager.setSortOrder(sortOrder)
         // Re-sort the current list based on sort order
-        _notesWithLabel.value?.let { notes ->
-            _notesWithLabel.value = when (sortOrder) {
+        _currentNotes.value?.let { notes ->
+            val sortedNotes = when (sortOrder) {
                 AppPreferenceManager.SORT_TITLE_ASC -> notes.sortedBy { it.title }
                 AppPreferenceManager.SORT_DATE_CREATED_DESC -> notes.sortedByDescending { it.createdAt }
                 AppPreferenceManager.SORT_DATE_MODIFIED_DESC -> notes.sortedByDescending { it.modifiedAt }
                 else -> notes.sortedByDescending { it.modifiedAt }
+            }
+            _currentNotes.value = sortedNotes
+            updateNotesList(sortedNotes)
+        }
+    }
+
+    fun deleteNote(note: Note) {
+        // Immediately update the UI
+        _currentNotes.value?.let { currentList ->
+            val updatedList = currentList.filter { it.id != note.id }
+            _currentNotes.value = updatedList
+            updateNotesList(updatedList)
+        }
+
+        // Then perform the actual database deletion
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.deleteNote(note)
+            } catch (e: Exception) {
+                // Log error if needed
+            }
+        }
+    }
+
+    fun deleteNotes(noteIds: List<Long>) {
+        // Immediately update the UI
+        _currentNotes.value?.let { currentList ->
+            val updatedList = currentList.filter { note -> note.id !in noteIds }
+            _currentNotes.value = updatedList
+            updateNotesList(updatedList)
+        }
+
+        // Then perform the actual database deletion
+        viewModelScope.launch(Dispatchers.IO) {
+            for (noteId in noteIds) {
+                try {
+                    val note = repository.getNoteById(noteId).value
+                    if (note != null) {
+                        repository.deleteNote(note)
+                    }
+                } catch (e: Exception) {
+                    // Log error if needed
+                }
             }
         }
     }

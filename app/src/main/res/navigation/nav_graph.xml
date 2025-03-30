@@ -47,7 +47,8 @@
 
     <fragment
         android:id="@+id/labelNotesFragment"
-        android:name="com.xr.notes.ui.LabelsFragment"
+        android:name="com.xr.notes.ui.LabelNotesFragment"
+        android:label="{labelName}"
         tools:layout="@layout/fragment_notes">
         <argument
             android:name="labelId"

@@ -1,7 +1,5 @@
 package com.xr.notes.ui
 
-// File: app/src/main/java/com/example/notesapp/ui/notes/NotesViewModel.kt
-
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
@@ -27,6 +25,7 @@ class NotesViewModel @Inject constructor(
 
     private val _searchQuery = MutableLiveData<String>("")
     private val notesSource = MediatorLiveData<List<Note>>()
+    private val _currentNotes = MutableLiveData<List<Note>>(listOf())
 
     val notes: LiveData<List<Note>> = notesSource
 
@@ -49,6 +48,7 @@ class NotesViewModel @Inject constructor(
         }
 
         notesSource.addSource(source) { notesList ->
+            _currentNotes.value = notesList
             val query = _searchQuery.value ?: ""
             if (query.isEmpty()) {
                 notesSource.value = notesList
@@ -64,8 +64,10 @@ class NotesViewModel @Inject constructor(
         _searchQuery.value = query
 
         // Trigger filtering of current list
-        notesSource.value = notesSource.value?.filter { note ->
-            note.content.contains(query, ignoreCase = true)
+        _currentNotes.value?.let { notes ->
+            notesSource.value = notes.filter { note ->
+                note.content.contains(query, ignoreCase = true)
+            }
         }
     }
 
@@ -75,30 +77,66 @@ class NotesViewModel @Inject constructor(
     }
 
     fun deleteNotes(noteIds: List<Long>) {
-        viewModelScope.launch {
-            noteIds.forEach { noteId ->
-                val note = repository.getNoteById(noteId).value ?: return@forEach
+        // Immediately update the UI
+        _currentNotes.value?.let { currentList ->
+            val updatedList = currentList.filter { note -> note.id !in noteIds }
+            notesSource.value = updatedList
+            _currentNotes.value = updatedList
+        }
+
+        // Then perform the actual database deletion
+        viewModelScope.launch(Dispatchers.IO) {
+            for (noteId in noteIds) {
+                try {
+                    val note = repository.getNoteById(noteId).value
+                    if (note != null) {
+                        repository.deleteNote(note)
+                    }
+                } catch (e: Exception) {
+                    // Log error if needed
+                }
+            }
+        }
+    }
+
+    fun deleteNote(note: Note) {
+        // Immediately update the UI
+        _currentNotes.value?.let { currentList ->
+            val updatedList = currentList.filter { it.id != note.id }
+            notesSource.value = updatedList
+            _currentNotes.value = updatedList
+        }
+
+        // Then perform the actual database deletion
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
                 repository.deleteNote(note)
+            } catch (e: Exception) {
+                // Log error if needed
             }
         }
     }
 
     fun createBackup() {
         viewModelScope.launch {
-            // Get all notes, labels, and their relationships
-            val notes = withContext(Dispatchers.IO) {
-                repository.getAllNotes().value ?: emptyList()
+            try {
+                // Get all notes, labels, and their relationships
+                val notes = withContext(Dispatchers.IO) {
+                    repository.getAllNotes().value ?: emptyList()
+                }
+
+                val labels = withContext(Dispatchers.IO) {
+                    repository.getAllLabels().value ?: emptyList()
+                }
+
+                // This would need to be expanded to get the actual cross references
+                val crossRefs = mutableListOf<NoteLabelCrossRef>()
+
+                // Create the backup
+                backupManager.createBackup(notes, labels, crossRefs)
+            } catch (e: Exception) {
+                // Log error if needed
             }
-
-            val labels = withContext(Dispatchers.IO) {
-                repository.getAllLabels().value ?: emptyList()
-            }
-
-            // This would need to be expanded to get the actual cross references
-            val crossRefs = mutableListOf<NoteLabelCrossRef>()
-
-            // Create the backup
-            backupManager.createBackup(notes, labels, crossRefs)
         }
     }
 }
