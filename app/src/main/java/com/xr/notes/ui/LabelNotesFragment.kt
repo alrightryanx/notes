@@ -2,6 +2,7 @@ package com.xr.notes.ui
 
 // File: app/src/main/java/com/example/notesapp/ui/labels/LabelNotesFragment.kt
 
+import com.xr.notes.R
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.Menu

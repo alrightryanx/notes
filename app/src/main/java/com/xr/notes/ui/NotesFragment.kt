@@ -2,6 +2,7 @@ package com.xr.notes.ui
 
 // File: app/src/main/java/com/example/notesapp/ui/notes/NotesFragment.kt
 
+import com.xr.notes.R
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.Menu
@@ -18,6 +19,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
 import com.xr.notes.NotesAdapter
+import com.xr.notes.models.Note
 import com.xr.notes.utils.AppPreferenceManager
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject

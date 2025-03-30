@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
 import com.xr.notes.BackupsAdapter
+import com.xr.notes.R
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint

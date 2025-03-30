@@ -4,6 +4,7 @@ import com.xr.notes.models.Label
 
 // File: app/src/main/java/com/example/notesapp/ui/labels/LabelsAdapter.kt
 
+import com.xr.notes.R
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
