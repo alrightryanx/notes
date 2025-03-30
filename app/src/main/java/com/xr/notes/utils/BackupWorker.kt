@@ -25,30 +25,26 @@ class BackupWorker @AssistedInject constructor(
             val notesLiveData = repository.getAllNotes()
             val labelsLiveData = repository.getAllLabels()
 
-            // Wait for the live data to emit values
-            var notes = notesLiveData.value ?: emptyList()
-            var labels = labelsLiveData.value ?: emptyList()
+            // Get the values
+            val notes = notesLiveData.value ?: emptyList()
+            val labels = labelsLiveData.value ?: emptyList()
 
-            // If the live data hasn't emitted values yet, try to get them manually
-            if (notes.isEmpty()) {
-                val notesWithLabels = repository.getAllNotesWithLabels().value ?: emptyList()
-                notes = notesWithLabels.map { it.note }
-            }
-
-            if (labels.isEmpty()) {
-                // This would need a method to get all labels with their notes
-                // For now, we'll use an empty list if we can't get labels
-            }
-
-            // This would need to be expanded to get the actual cross references
+            // Get note-label relationships
             val crossRefs = mutableListOf<NoteLabelCrossRef>()
+            val notesWithLabels = repository.getAllNotesWithLabels().value ?: emptyList()
+
+            for (noteWithLabels in notesWithLabels) {
+                val noteId = noteWithLabels.note.id
+                for (label in noteWithLabels.labels) {
+                    crossRefs.add(NoteLabelCrossRef(noteId, label.id))
+                }
+            }
 
             // Create automatic backup
             backupManager.createBackup(notes, labels, crossRefs)
 
             Result.success()
         } catch (e: Exception) {
-            e.printStackTrace()
             Result.failure()
         }
     }

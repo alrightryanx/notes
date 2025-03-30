@@ -1,7 +1,6 @@
 package com.xr.notes.ui
 
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuInflater
@@ -13,7 +12,6 @@ import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -22,8 +20,6 @@ import com.google.android.material.snackbar.Snackbar
 import com.xr.notes.R
 import com.xr.notes.models.Label
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
@@ -38,7 +34,6 @@ class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setHasOptionsMenu(true)
-        Log.d("LabelsFragment", "onCreate called")
     }
 
     override fun onCreateView(
@@ -46,7 +41,6 @@ class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        Log.d("LabelsFragment", "onCreateView called")
         val view = inflater.inflate(R.layout.fragment_labels, container, false)
 
         recyclerView = view.findViewById(R.id.recyclerViewLabels)
@@ -58,15 +52,12 @@ class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
 
         // Initialize active labels
         sharedViewModel.initializeActiveLabels()
-
-        // Force a refresh of the labels
         viewModel.forceRefreshLabels()
 
         return view
     }
 
     private fun setupRecyclerView() {
-        Log.d("LabelsFragment", "Setting up RecyclerView")
         labelsAdapter = LabelsAdapter(this)
         recyclerView.apply {
             layoutManager = LinearLayoutManager(requireContext())
@@ -81,29 +72,19 @@ class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
     }
 
     private fun observeViewModel() {
-        Log.d("LabelsFragment", "Setting up ViewModel observers")
-
         viewModel.labelItems.observe(viewLifecycleOwner) { labelItems ->
-            Log.d("LabelsFragment", "Received ${labelItems.size} label items from ViewModel")
             labelsAdapter.submitList(labelItems)
         }
 
         // Observe active labels for UI updates
         viewModel.activeLabels.observe(viewLifecycleOwner) { activeLabels ->
-            Log.d("LabelsFragment", "Active labels changed: ${activeLabels.size}")
-            // This will ensure our checkbox states are updated when active labels change
             viewModel.forceRefreshLabels()
         }
     }
 
     override fun onResume() {
         super.onResume()
-        Log.d("LabelsFragment", "onResume called")
-        // Force refresh when returning to this fragment
-        viewLifecycleOwner.lifecycleScope.launch {
-            delay(100) // Small delay to let UI settle
-            viewModel.forceRefreshLabels()
-        }
+        viewModel.forceRefreshLabels()
     }
 
     private fun showAddLabelDialog() {
@@ -179,15 +160,12 @@ class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
     }
 
     override fun onLabelClicked(labelItem: LabelItem) {
-        Log.d("LabelsFragment", "Label clicked: ${labelItem.name}")
-
         if (labelItem.isSpecial) {
             // For "ALL" label, just navigate back to the main screen
             findNavController().navigateUp()
         } else {
             // Navigate to notes with this label
             labelItem.label?.let { label ->
-                Log.d("LabelsFragment", "Navigating to label notes for ${label.name}")
                 val bundle = Bundle().apply {
                     putLong("labelId", label.id)
                     putString("labelName", label.name)
@@ -198,18 +176,14 @@ class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
     }
 
     override fun onLabelEditClicked(label: Label) {
-        Log.d("LabelsFragment", "Edit label clicked: ${label.name}")
         showEditLabelDialog(label)
     }
 
     override fun onLabelDeleteClicked(label: Label) {
-        Log.d("LabelsFragment", "Delete label clicked: ${label.name}")
         confirmDeleteLabel(label)
     }
 
     override fun onLabelActiveChanged(labelItem: LabelItem, isActive: Boolean) {
-        Log.d("LabelsFragment", "Label active changed: ${labelItem.name}, active: $isActive")
-
         if (labelItem.isSpecial) {
             // Handle ALL label
             viewModel.toggleAllLabelsActive(isActive)

@@ -1,7 +1,6 @@
 package com.xr.notes
 
 import android.annotation.SuppressLint
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -39,7 +38,6 @@ class NotesAdapter(
 
     override fun onBindViewHolder(holder: NoteViewHolder, position: Int) {
         val noteWithLabels = getItem(position)
-        Log.d("NotesAdapter", "Binding note at position $position: ${noteWithLabels.note.title}")
         holder.bind(noteWithLabels)
     }
 
@@ -148,10 +146,8 @@ class NotesAdapter(
                 val labelNames = labels.joinToString(", ") { it.name }
                 labelsTextView.text = labelNames
                 labelsTextView.visibility = View.VISIBLE
-                Log.d("NotesAdapter", "Note ${note.title} has labels: $labelNames")
             } else {
                 labelsTextView.visibility = View.GONE
-                Log.d("NotesAdapter", "Note ${note.title} has no labels")
             }
 
             // Encrypted note indicator

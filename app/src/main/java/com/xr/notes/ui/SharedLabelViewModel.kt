@@ -1,6 +1,5 @@
 package com.xr.notes.ui
 
-import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -23,23 +22,12 @@ class SharedLabelViewModel @Inject constructor(
     private val _filteringByActiveEnabled = MutableLiveData<Boolean>(false)
     val filteringByActiveEnabled: LiveData<Boolean> = _filteringByActiveEnabled
 
-    init {
-        // Initialize shared model
-        viewModelScope.launch {
-            initializeActiveLabels()
-        }
-    }
-
     /**
      * Initialize active labels - at the start we want all labels to be active
      */
     fun initializeActiveLabels() {
-        Log.d("SharedLabelViewModel", "Initializing active labels")
         viewModelScope.launch {
             try {
-                // Wait for a moment to ensure repository is initialized
-                kotlinx.coroutines.delay(100)
-
                 // Get all labels
                 val labelsLiveData = repository.getAllLabels()
                 val labels = labelsLiveData.value
@@ -48,14 +36,11 @@ class SharedLabelViewModel @Inject constructor(
                     // Set all labels as active
                     val allLabelIds = labels.map { it.id }.toSet()
                     activeLabelsStore.setActiveLabels(allLabelIds)
-                    Log.d("SharedLabelViewModel", "Found and initialized ${labels.size} labels as active")
                 } else {
                     // If no labels yet, ensure we're not filtering
                     activeLabelsStore.clearActiveLabels()
-                    Log.d("SharedLabelViewModel", "No labels found to initialize")
                 }
             } catch (e: Exception) {
-                Log.e("SharedLabelViewModel", "Error initializing labels", e)
                 // Ensure we're not filtering if there's an error
                 activeLabelsStore.clearActiveLabels()
             }
