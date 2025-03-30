@@ -1,10 +1,9 @@
 package com.xr.notes.utils
-// File: app/src/main/java/com/example/notesapp/utils/PreferenceManager.kt
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.preference.PreferenceManager
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.preference.PreferenceManager
 
 class AppPreferenceManager(context: Context) {
 

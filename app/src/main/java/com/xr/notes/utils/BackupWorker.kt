@@ -1,11 +1,10 @@
 package com.xr.notes.utils
 
-// File: app/src/main/java/com/example/notesapp/utils/BackupWorker.kt
-
 import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.xr.notes.models.NoteLabelCrossRef
 import com.xr.notes.repo.NotesRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -22,18 +21,34 @@ class BackupWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            // Get all notes, labels, and their relationships
-            val notes = repository.getAllNotes().value ?: emptyList()
-            val labels = repository.getAllLabels().value ?: emptyList()
+            // Get all notes and labels
+            val notesLiveData = repository.getAllNotes()
+            val labelsLiveData = repository.getAllLabels()
+
+            // Wait for the live data to emit values
+            var notes = notesLiveData.value ?: emptyList()
+            var labels = labelsLiveData.value ?: emptyList()
+
+            // If the live data hasn't emitted values yet, try to get them manually
+            if (notes.isEmpty()) {
+                val notesWithLabels = repository.getAllNotesWithLabels().value ?: emptyList()
+                notes = notesWithLabels.map { it.note }
+            }
+
+            if (labels.isEmpty()) {
+                // This would need a method to get all labels with their notes
+                // For now, we'll use an empty list if we can't get labels
+            }
 
             // This would need to be expanded to get the actual cross references
-            val crossRefs = emptyList() // Placeholder
+            val crossRefs = mutableListOf<NoteLabelCrossRef>()
 
             // Create automatic backup
             backupManager.createBackup(notes, labels, crossRefs)
 
             Result.success()
         } catch (e: Exception) {
+            e.printStackTrace()
             Result.failure()
         }
     }

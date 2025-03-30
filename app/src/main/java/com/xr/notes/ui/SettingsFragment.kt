@@ -11,6 +11,9 @@ import androidx.preference.SwitchPreferenceCompat
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.xr.notes.R
+import com.xr.notes.utils.AppPreferenceManager
+import com.xr.notes.utils.BackupWorker
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
