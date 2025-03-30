@@ -37,19 +37,13 @@ class NotesViewModel @Inject constructor(
     private fun updateSortOrder(sortOrder: String) {
         notesSource.removeSource(repository.getAllNotes())
         notesSource.removeSource(repository.getAllNotesSortedByTitle())
-        notesSource.removeSource(repository.getAllNotesSortedByTitleDesc())
         notesSource.removeSource(repository.getAllNotesSortedByDateCreated())
-        notesSource.removeSource(repository.getAllNotesSortedByDateCreatedAsc())
         notesSource.removeSource(repository.getAllNotesSortedByDateModified())
-        notesSource.removeSource(repository.getAllNotesSortedByDateModifiedAsc())
 
         val source = when (sortOrder) {
             AppPreferenceManager.SORT_TITLE_ASC -> repository.getAllNotesSortedByTitle()
-            AppPreferenceManager.SORT_TITLE_DESC -> repository.getAllNotesSortedByTitleDesc()
             AppPreferenceManager.SORT_DATE_CREATED_DESC -> repository.getAllNotesSortedByDateCreated()
-            AppPreferenceManager.SORT_DATE_CREATED_ASC -> repository.getAllNotesSortedByDateCreatedAsc()
             AppPreferenceManager.SORT_DATE_MODIFIED_DESC -> repository.getAllNotesSortedByDateModified()
-            AppPreferenceManager.SORT_DATE_MODIFIED_ASC -> repository.getAllNotesSortedByDateModifiedAsc()
             else -> repository.getAllNotesSortedByDateModified()
         }
 

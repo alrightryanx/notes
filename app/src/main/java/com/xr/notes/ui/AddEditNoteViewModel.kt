@@ -1,12 +1,12 @@
 package com.xr.notes.ui
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xr.notes.models.Label
 import com.xr.notes.models.Note
-import com.xr.notes.models.NoteWithLabels
 import com.xr.notes.repo.NotesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -30,6 +30,9 @@ class AddEditNoteViewModel @Inject constructor(
 
     private var currentNoteId: Long = -1L
     private var isSaving = false // Flag to prevent concurrent save operations
+
+    // Expose the current note ID
+    fun getCurrentNoteId(): Long = currentNoteId
 
     fun loadNote(noteId: Long) {
         if (noteId != -1L) {
@@ -72,9 +75,12 @@ class AddEditNoteViewModel @Inject constructor(
                         modifiedAt = Date()
                     )
                     currentNoteId = repository.insertNote(newNote)
+                    Log.d("AddEditNoteVM", "New note created with ID: $currentNoteId")
                 }
 
                 _saveComplete.value = true
+            } catch (e: Exception) {
+                Log.e("AddEditNoteVM", "Error saving note", e)
             } finally {
                 isSaving = false
             }
@@ -83,50 +89,72 @@ class AddEditNoteViewModel @Inject constructor(
 
     fun getAllLabels() {
         viewModelScope.launch {
-            // Get all labels
-            val labels = repository.getAllLabels().value ?: emptyList()
+            try {
+                val allLabels = repository.getAllLabels().value ?: emptyList()
+                Log.d("AddEditNoteVM", "getAllLabels found ${allLabels.size} labels")
 
-            if (currentNoteId != -1L) {
-                // For existing note, get associated labels
-                val noteWithLabels = repository.getNoteWithLabels(currentNoteId).value
-                val noteLabels = noteWithLabels?.labels ?: emptyList()
+                if (currentNoteId != -1L) {
+                    val noteWithLabels = repository.getNoteWithLabels(currentNoteId).value
+                    val associatedLabelIds = noteWithLabels?.labels?.map { it.id } ?: emptyList()
 
-                // Create pairs of (label, isSelected)
-                _labelsWithSelection.value = labels.map { label ->
-                    label to noteLabels.any { it.id == label.id }
+                    val result = allLabels.map { label ->
+                        val isSelected = associatedLabelIds.contains(label.id)
+                        label to isSelected
+                    }
+
+                    _labelsWithSelection.postValue(result)
+                } else {
+                    // For a new note, all labels are unselected
+                    _labelsWithSelection.postValue(allLabels.map { it to false })
                 }
-            } else {
-                // For a new note, all labels are unselected
-                _labelsWithSelection.value = labels.map { label ->
-                    label to false
-                }
+            } catch (e: Exception) {
+                Log.e("AddEditNoteVM", "Error loading labels", e)
+                _labelsWithSelection.postValue(emptyList())
             }
         }
     }
 
     fun createLabel(name: String) {
         viewModelScope.launch {
-            val newLabel = Label(name = name)
-            val labelId = repository.insertLabel(newLabel)
-
-            // Refresh labels list
-            getAllLabels()
+            try {
+                val newLabel = Label(name = name)
+                val labelId = repository.insertLabel(newLabel)
+                Log.d("AddEditNoteVM", "Created new label with ID: $labelId")
+            } catch (e: Exception) {
+                Log.e("AddEditNoteVM", "Error creating label", e)
+            }
         }
     }
 
     fun addLabelToNote(labelId: Long) {
-        if (currentNoteId == -1L) return
+        if (currentNoteId == -1L) {
+            Log.e("AddEditNoteVM", "Cannot add label to unsaved note")
+            return
+        }
 
         viewModelScope.launch {
-            repository.addLabelToNote(currentNoteId, labelId)
+            try {
+                repository.addLabelToNote(currentNoteId, labelId)
+                Log.d("AddEditNoteVM", "Added label $labelId to note $currentNoteId")
+            } catch (e: Exception) {
+                Log.e("AddEditNoteVM", "Error adding label to note", e)
+            }
         }
     }
 
     fun removeLabelFromNote(labelId: Long) {
-        if (currentNoteId == -1L) return
+        if (currentNoteId == -1L) {
+            Log.e("AddEditNoteVM", "Cannot remove label from unsaved note")
+            return
+        }
 
         viewModelScope.launch {
-            repository.removeLabelFromNote(currentNoteId, labelId)
+            try {
+                repository.removeLabelFromNote(currentNoteId, labelId)
+                Log.d("AddEditNoteVM", "Removed label $labelId from note $currentNoteId")
+            } catch (e: Exception) {
+                Log.e("AddEditNoteVM", "Error removing label from note", e)
+            }
         }
     }
 

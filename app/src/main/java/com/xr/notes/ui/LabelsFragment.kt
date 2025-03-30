@@ -1,16 +1,13 @@
 package com.xr.notes.ui
 
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.Menu
-import android.view.MenuInflater
-import android.view.MenuItem
-import android.view.View
-import android.view.ViewGroup
+import android.util.Log
+import android.view.*
 import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -19,6 +16,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.xr.notes.R
 import com.xr.notes.models.Label
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
@@ -45,9 +43,14 @@ class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
 
         setupRecyclerView()
         setupFab()
-        observeViewModel()
 
         return view
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        // Observe the ViewModel after view is created
+        observeViewModel()
     }
 
     private fun setupRecyclerView() {
@@ -65,8 +68,19 @@ class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
     }
 
     private fun observeViewModel() {
+        // Force refresh labels when fragment is created
+        lifecycleScope.launch {
+            viewModel.refreshLabels()
+        }
+
         viewModel.labels.observe(viewLifecycleOwner) { labels ->
+            Log.d("LabelsFragment", "Received ${labels.size} labels from ViewModel")
             labelsAdapter.submitList(labels)
+
+            // Show a message if no labels
+            if (labels.isEmpty()) {
+                Snackbar.make(requireView(), "No labels yet. Create your first label!", Snackbar.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -79,7 +93,9 @@ class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
             .setPositiveButton(R.string.action_create) { _, _ ->
                 val labelName = input.text.toString().trim()
                 if (labelName.isNotEmpty()) {
-                    viewModel.createLabel(labelName)
+                    lifecycleScope.launch {
+                        viewModel.createLabel(labelName)
+                    }
                 } else {
                     Snackbar.make(requireView(), R.string.error_empty_label, Snackbar.LENGTH_SHORT).show()
                 }
@@ -100,7 +116,9 @@ class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
             .setPositiveButton(R.string.action_save) { _, _ ->
                 val labelName = input.text.toString().trim()
                 if (labelName.isNotEmpty()) {
-                    viewModel.updateLabel(label.id, labelName)
+                    lifecycleScope.launch {
+                        viewModel.updateLabel(label.id, labelName)
+                    }
                 } else {
                     Snackbar.make(requireView(), R.string.error_empty_label, Snackbar.LENGTH_SHORT).show()
                 }
@@ -116,8 +134,10 @@ class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
             .setTitle(R.string.confirm_delete_label)
             .setMessage(R.string.confirm_delete_label_message)
             .setPositiveButton(R.string.action_delete) { _, _ ->
-                viewModel.deleteLabel(label)
-                Snackbar.make(requireView(), R.string.label_deleted, Snackbar.LENGTH_SHORT).show()
+                lifecycleScope.launch {
+                    viewModel.deleteLabel(label)
+                    Snackbar.make(requireView(), R.string.label_deleted, Snackbar.LENGTH_SHORT).show()
+                }
             }
             .setNegativeButton(R.string.action_cancel) { dialog, _ ->
                 dialog.cancel()
@@ -125,13 +145,11 @@ class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
             .show()
     }
 
-    @Suppress("DEPRECATION")
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
         inflater.inflate(R.menu.menu_labels, menu)
         super.onCreateOptionsMenu(menu, inflater)
     }
 
-    @Suppress("DEPRECATION")
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_add_label -> {
@@ -144,7 +162,6 @@ class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
 
     override fun onLabelClicked(label: Label) {
         // Navigate to notes with this label
-        // Create a bundle manually since we don't have the SafeArgs generated classes
         val bundle = Bundle().apply {
             putLong("labelId", label.id)
             putString("labelName", label.name)
