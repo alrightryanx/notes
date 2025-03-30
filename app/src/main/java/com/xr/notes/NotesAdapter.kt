@@ -45,7 +45,7 @@ class NotesAdapter(
             selectedNotes.clear()
             listener.onSelectionChanged(0)
         }
-        notifyDataSetChanged()
+        notifyDataSetChanged() // Make sure this is called
         return selectionMode
     }
 
@@ -102,6 +102,7 @@ class NotesAdapter(
                         // Start selection mode and select this note
                         selectionMode = true
                         toggleNoteSelection(note)
+                        notifyDataSetChanged() // Add this line to refresh all views
                         return@setOnLongClickListener true
                     } else {
                         // If already in selection mode, request to delete this note directly

@@ -1,5 +1,6 @@
 package com.xr.notes.ui
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.Menu
@@ -169,6 +170,7 @@ class LabelNotesFragment : Fragment(), NotesAdapter.NoteItemListener {
         }
     }
 
+    @SuppressLint("StringFormatInvalid")
     private fun confirmDeleteNotes(noteIds: List<Long>) {
         AlertDialog.Builder(requireContext())
             .setTitle(if (noteIds.size > 1) getString(R.string.confirm_delete, noteIds.size) else getString(R.string.confirm_delete))
@@ -176,6 +178,11 @@ class LabelNotesFragment : Fragment(), NotesAdapter.NoteItemListener {
             .setPositiveButton(R.string.action_delete) { _, _ ->
                 // Delete notes through the ViewModel
                 viewModel.deleteNotes(noteIds)
+
+                if (notesAdapter.isInSelectionMode()) {
+                    notesAdapter.toggleSelectionMode() // This will call notifyDataSetChanged()
+                    activity?.invalidateOptionsMenu()
+                }
 
                 // Show confirmation
                 Snackbar.make(
