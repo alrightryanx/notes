@@ -7,81 +7,118 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xr.notes.models.Note
 import com.xr.notes.models.NoteLabelCrossRef
+import com.xr.notes.models.NoteWithLabels
 import com.xr.notes.repo.NotesRepository
+import com.xr.notes.utils.ActiveLabelsStore
 import com.xr.notes.utils.AppPreferenceManager
 import com.xr.notes.utils.BackupManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
 class NotesViewModel @Inject constructor(
     private val repository: NotesRepository,
     private val prefManager: AppPreferenceManager,
-    private val backupManager: BackupManager
+    private val backupManager: BackupManager,
+    private val activeLabelsStore: ActiveLabelsStore
 ) : ViewModel() {
 
     private val _searchQuery = MutableLiveData<String>("")
-    private val notesSource = MediatorLiveData<List<Note>>()
-    private val _currentNotes = MutableLiveData<List<Note>>(listOf())
+    private val _notesWithLabels = MediatorLiveData<List<NoteWithLabels>>()
+    private val _filteredNotes = MediatorLiveData<List<NoteWithLabels>>()
 
-    val notes: LiveData<List<Note>> = notesSource
+    // Exposed LiveData for the UI
+    val notesWithLabels: LiveData<List<NoteWithLabels>> = _filteredNotes
+
+    // For selection mode
+    private var inSelectionMode = false
+    private val selectedNoteIds = mutableSetOf<Long>()
 
     init {
-        // Initial sort order from preferences
-        updateSortOrder(prefManager.getSortOrder())
-    }
-
-    private fun updateSortOrder(sortOrder: String) {
-        notesSource.removeSource(repository.getAllNotes())
-        notesSource.removeSource(repository.getAllNotesSortedByTitle())
-        notesSource.removeSource(repository.getAllNotesSortedByDateCreated())
-        notesSource.removeSource(repository.getAllNotesSortedByDateModified())
-
-        val source = when (sortOrder) {
-            AppPreferenceManager.SORT_TITLE_ASC -> repository.getAllNotesSortedByTitle()
-            AppPreferenceManager.SORT_DATE_CREATED_DESC -> repository.getAllNotesSortedByDateCreated()
-            AppPreferenceManager.SORT_DATE_MODIFIED_DESC -> repository.getAllNotesSortedByDateModified()
-            else -> repository.getAllNotesSortedByDateModified()
+        // Load notes with their labels
+        _notesWithLabels.addSource(repository.getAllNotesWithLabels()) { notesWithLabels ->
+            _notesWithLabels.value = applySortOrder(notesWithLabels, prefManager.getSortOrder())
+            updateFilteredNotes()
         }
 
-        notesSource.addSource(source) { notesList ->
-            _currentNotes.value = notesList
-            val query = _searchQuery.value ?: ""
-            if (query.isEmpty()) {
-                notesSource.value = notesList
+        // Listen for active labels changes
+        _filteredNotes.addSource(activeLabelsStore.activeLabelsIds) { _ ->
+            updateFilteredNotes()
+        }
+
+        // Listen for search query changes
+        _filteredNotes.addSource(_searchQuery) { _ ->
+            updateFilteredNotes()
+        }
+    }
+
+    private fun updateFilteredNotes() {
+        val allNotes = _notesWithLabels.value ?: emptyList()
+        val activeLabelsIds = activeLabelsStore.getActiveLabels()
+        val searchQuery = _searchQuery.value ?: ""
+
+        // If no active labels, show all notes
+        if (activeLabelsIds.isEmpty()) {
+            _filteredNotes.value = if (searchQuery.isEmpty()) {
+                allNotes
             } else {
-                notesSource.value = notesList.filter { note ->
-                    note.content.contains(query, ignoreCase = true)
+                allNotes.filter { noteWithLabels ->
+                    noteWithLabels.note.content.contains(searchQuery, ignoreCase = true)
                 }
             }
+            return
+        }
+
+        // Filter notes by active labels
+        val filteredByLabels = allNotes.filter { noteWithLabels ->
+            // Show notes that have at least one active label
+            noteWithLabels.labels.any { label ->
+                activeLabelsIds.contains(label.id)
+            }
+        }
+
+        // Apply search filter if needed
+        _filteredNotes.value = if (searchQuery.isEmpty()) {
+            filteredByLabels
+        } else {
+            filteredByLabels.filter { noteWithLabels ->
+                noteWithLabels.note.content.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+
+    private fun applySortOrder(notes: List<NoteWithLabels>, sortOrder: String): List<NoteWithLabels> {
+        return when (sortOrder) {
+            AppPreferenceManager.SORT_TITLE_ASC -> notes.sortedBy { it.note.title }
+            AppPreferenceManager.SORT_TITLE_DESC -> notes.sortedByDescending { it.note.title }
+            AppPreferenceManager.SORT_DATE_CREATED_DESC -> notes.sortedByDescending { it.note.createdAt }
+            AppPreferenceManager.SORT_DATE_CREATED_ASC -> notes.sortedBy { it.note.createdAt }
+            AppPreferenceManager.SORT_DATE_MODIFIED_DESC -> notes.sortedByDescending { it.note.modifiedAt }
+            AppPreferenceManager.SORT_DATE_MODIFIED_ASC -> notes.sortedBy { it.note.modifiedAt }
+            else -> notes.sortedByDescending { it.note.modifiedAt }
         }
     }
 
     fun searchNotes(query: String) {
         _searchQuery.value = query
-
-        // Trigger filtering of current list
-        _currentNotes.value?.let { notes ->
-            notesSource.value = notes.filter { note ->
-                note.content.contains(query, ignoreCase = true)
-            }
-        }
     }
 
     fun setSortOrder(sortOrder: String) {
         prefManager.setSortOrder(sortOrder)
-        updateSortOrder(sortOrder)
+        _notesWithLabels.value?.let { notes ->
+            _notesWithLabels.value = applySortOrder(notes, sortOrder)
+            updateFilteredNotes()
+        }
     }
 
     fun deleteNotes(noteIds: List<Long>) {
         // Immediately update the UI
-        _currentNotes.value?.let { currentList ->
-            val updatedList = currentList.filter { note -> note.id !in noteIds }
-            notesSource.value = updatedList
-            _currentNotes.value = updatedList
+        _notesWithLabels.value?.let { currentList ->
+            val updatedList = currentList.filter { it.note.id !in noteIds }
+            _notesWithLabels.value = updatedList
+            updateFilteredNotes()
         }
 
         // Then perform the actual database deletion
@@ -101,10 +138,10 @@ class NotesViewModel @Inject constructor(
 
     fun deleteNote(note: Note) {
         // Immediately update the UI
-        _currentNotes.value?.let { currentList ->
-            val updatedList = currentList.filter { it.id != note.id }
-            notesSource.value = updatedList
-            _currentNotes.value = updatedList
+        _notesWithLabels.value?.let { currentList ->
+            val updatedList = currentList.filter { it.note.id != note.id }
+            _notesWithLabels.value = updatedList
+            updateFilteredNotes()
         }
 
         // Then perform the actual database deletion
@@ -121,13 +158,8 @@ class NotesViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 // Get all notes, labels, and their relationships
-                val notes = withContext(Dispatchers.IO) {
-                    repository.getAllNotes().value ?: emptyList()
-                }
-
-                val labels = withContext(Dispatchers.IO) {
-                    repository.getAllLabels().value ?: emptyList()
-                }
+                val notes = repository.getAllNotes().value ?: emptyList()
+                val labels = repository.getAllLabels().value ?: emptyList()
 
                 // This would need to be expanded to get the actual cross references
                 val crossRefs = mutableListOf<NoteLabelCrossRef>()
@@ -138,5 +170,13 @@ class NotesViewModel @Inject constructor(
                 // Log error if needed
             }
         }
+    }
+
+    fun isLabelActive(labelId: Long): Boolean {
+        return activeLabelsStore.isLabelActive(labelId)
+    }
+
+    fun getActiveLabelsIds(): Set<Long> {
+        return activeLabelsStore.getActiveLabels()
     }
 }

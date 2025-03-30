@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import android.widget.SearchView
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -31,9 +32,12 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
     lateinit var prefManager: AppPreferenceManager
 
     private val viewModel: NotesViewModel by viewModels()
+    private val sharedLabelViewModel: SharedLabelViewModel by activityViewModels()
+
     private lateinit var notesAdapter: NotesAdapter
     private lateinit var recyclerView: RecyclerView
     private lateinit var fabAddNote: FloatingActionButton
+    private lateinit var emptyView: View
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,6 +53,7 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
 
         recyclerView = view.findViewById(R.id.recyclerViewNotes)
         fabAddNote = view.findViewById(R.id.fabAddNote)
+        emptyView = view.findViewById(R.id.emptyView) // Add this empty state view to your layout
 
         setupRecyclerView()
         setupFab()
@@ -72,8 +77,19 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
     }
 
     private fun observeViewModel() {
-        viewModel.notes.observe(viewLifecycleOwner) { notes ->
-            notesAdapter.submitList(notes)
+        viewModel.notesWithLabels.observe(viewLifecycleOwner) { notesWithLabels ->
+            notesAdapter.submitList(notesWithLabels)
+            updateEmptyStateVisibility(notesWithLabels)
+        }
+    }
+
+    private fun updateEmptyStateVisibility(notesWithLabels: List<Any>) {
+        if (notesWithLabels.isEmpty()) {
+            recyclerView.visibility = View.GONE
+            emptyView.visibility = View.VISIBLE
+        } else {
+            recyclerView.visibility = View.VISIBLE
+            emptyView.visibility = View.GONE
         }
     }
 
