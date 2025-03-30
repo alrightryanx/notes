@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_save"
+        android:icon="@drawable/baseline_star_24"
+        android:title="@string/action_save"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_labels"
+        android:icon="@drawable/baseline_bookmark_24"
+        android:title="@string/labels"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_encrypt_decrypt"
+        android:icon="@drawable/baseline_lock_24"
+        android:title="@string/action_encrypt"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_delete"
+        android:icon="@drawable/baseline_delete_24"
+        android:title="@string/action_delete"
+        app:showAsAction="never" />
+
+</menu>

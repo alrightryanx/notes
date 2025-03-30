@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory android:title="@string/appearance">
+
+        <ListPreference
+            android:defaultValue="system"
+            android:entries="@array/theme_entries"
+            android:entryValues="@array/theme_values"
+            android:key="theme_preference"
+            android:title="@string/theme" />
+
+        <ListPreference
+            android:defaultValue="medium"
+            android:entries="@array/text_size_entries"
+            android:entryValues="@array/text_size_values"
+            android:key="text_size_preference"
+            android:title="@string/text_size" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/backup">
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="auto_backup_preference"
+            android:title="@string/auto_backup"
+            android:summary="@string/auto_backup_summary" />
+
+        <ListPreference
+            android:defaultValue="weekly"
+            android:dependency="auto_backup_preference"
+            android:entries="@array/backup_frequency_entries"
+            android:entryValues="@array/backup_frequency_values"
+            android:key="backup_frequency_preference"
+            android:title="@string/backup_frequency" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

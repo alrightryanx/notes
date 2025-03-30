@@ -1,0 +1,157 @@
+package com.xr.notes.ui
+
+// File: app/src/main/java/com/example/notesapp/ui/labels/LabelsFragment.kt
+
+
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
+import android.view.View
+import android.view.ViewGroup
+import android.widget.EditText
+import androidx.appcompat.app.AlertDialog
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.android.material.snackbar.Snackbar
+import com.xr.notes.R
+import com.xr.notes.models.Label
+import dagger.hilt.android.AndroidEntryPoint
+
+@AndroidEntryPoint
+class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
+
+    private val viewModel: LabelsViewModel by viewModels()
+    private lateinit var labelsAdapter: LabelsAdapter
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var fabAddLabel: FloatingActionButton
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setHasOptionsMenu(true)
+    }
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        val view = inflater.inflate(R.layout.fragment_labels, container, false)
+
+        recyclerView = view.findViewById(R.id.recyclerViewLabels)
+        fabAddLabel = view.findViewById(R.id.fabAddLabel)
+
+        setupRecyclerView()
+        setupFab()
+        observeViewModel()
+
+        return view
+    }
+
+    private fun setupRecyclerView() {
+        labelsAdapter = LabelsAdapter(this)
+        recyclerView.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            adapter = labelsAdapter
+        }
+    }
+
+    private fun setupFab() {
+        fabAddLabel.setOnClickListener {
+            showAddLabelDialog()
+        }
+    }
+
+    private fun observeViewModel() {
+        viewModel.labels.observe(viewLifecycleOwner) { labels ->
+            labelsAdapter.submitList(labels)
+        }
+    }
+
+    private fun showAddLabelDialog() {
+        val input = EditText(requireContext())
+
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.create_new_label)
+            .setView(input)
+            .setPositiveButton(R.string.action_create) { _, _ ->
+                val labelName = input.text.toString().trim()
+                if (labelName.isNotEmpty()) {
+                    viewModel.createLabel(labelName)
+                } else {
+                    Snackbar.make(requireView(), R.string.error_empty_label, Snackbar.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton(R.string.action_cancel) { dialog, _ ->
+                dialog.cancel()
+            }
+            .show()
+    }
+
+    private fun showEditLabelDialog(label: Label) {
+        val input = EditText(requireContext())
+        input.setText(label.name)
+
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.edit_label)
+            .setView(input)
+            .setPositiveButton(R.string.action_save) { _, _ ->
+                val labelName = input.text.toString().trim()
+                if (labelName.isNotEmpty()) {
+                    viewModel.updateLabel(label.id, labelName)
+                } else {
+                    Snackbar.make(requireView(), R.string.error_empty_label, Snackbar.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton(R.string.action_cancel) { dialog, _ ->
+                dialog.cancel()
+            }
+            .show()
+    }
+
+    private fun confirmDeleteLabel(label: Label) {
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.confirm_delete_label)
+            .setMessage(R.string.confirm_delete_label_message)
+            .setPositiveButton(R.string.action_delete) { _, _ ->
+                viewModel.deleteLabel(label)
+                Snackbar.make(requireView(), R.string.label_deleted, Snackbar.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(R.string.action_cancel) { dialog, _ ->
+                dialog.cancel()
+            }
+            .show()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        inflater.inflate(R.menu.menu_labels, menu)
+        super.onCreateOptionsMenu(menu, inflater)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_add_label -> {
+                showAddLabelDialog()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    override fun onLabelClicked(label: Label) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onLabelEditClicked(label: Label) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onLabelDeleteClicked(label: Label) {
+        TODO("Not yet implemented")
+    }
+}
