@@ -128,7 +128,7 @@ class NotesAdapter(
 
             // Format the date
             val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-            dateTextView.text = dateFormat.format(note.modifiedAt)
+            dateTextView.text = dateFormat.format(note.createdAt)
 
             // Show checkbox in selection mode
             checkBox.visibility = if (selectionMode) View.VISIBLE else View.GONE
