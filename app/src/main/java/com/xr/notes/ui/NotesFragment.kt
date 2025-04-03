@@ -2,15 +2,19 @@ package com.xr.notes.ui
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.SearchView
+import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -31,13 +35,17 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
     lateinit var prefManager: AppPreferenceManager
 
     private val viewModel: NotesViewModel by viewModels()
+    private val sharedLabelViewModel: SharedLabelViewModel by activityViewModels()
+
     private lateinit var notesAdapter: NotesAdapter
     private lateinit var recyclerView: RecyclerView
     private lateinit var fabAddNote: FloatingActionButton
+    private lateinit var emptyView: View
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setHasOptionsMenu(true)
+        Log.d("NotesFragment", "onCreate called")
     }
 
     override fun onCreateView(
@@ -45,19 +53,26 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
+        Log.d("NotesFragment", "onCreateView called")
         val view = inflater.inflate(R.layout.fragment_notes, container, false)
 
         recyclerView = view.findViewById(R.id.recyclerViewNotes)
         fabAddNote = view.findViewById(R.id.fabAddNote)
+        emptyView = view.findViewById(R.id.emptyView)
 
         setupRecyclerView()
         setupFab()
+
+        // Force refresh notes
+        //viewModel.forceRefreshNotes()
+
         observeViewModel()
 
         return view
     }
 
     private fun setupRecyclerView() {
+        Log.d("NotesFragment", "Setting up RecyclerView")
         notesAdapter = NotesAdapter(prefManager, this)
         recyclerView.apply {
             layoutManager = LinearLayoutManager(requireContext())
@@ -72,8 +87,24 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
     }
 
     private fun observeViewModel() {
-        viewModel.notes.observe(viewLifecycleOwner) { notes ->
-            notesAdapter.submitList(notes)
+        Log.d("NotesFragment", "Observing ViewModel")
+
+        viewModel.notesWithLabels.observe(viewLifecycleOwner) { notesWithLabels ->
+            Log.d("NotesFragment", "Received ${notesWithLabels.size} notes from ViewModel")
+            notesAdapter.submitList(notesWithLabels)
+            updateEmptyStateVisibility(notesWithLabels)
+        }
+    }
+
+    private fun updateEmptyStateVisibility(notesWithLabels: List<Any>) {
+        if (notesWithLabels.isEmpty()) {
+            Log.d("NotesFragment", "No notes to display, showing empty state")
+            recyclerView.visibility = View.GONE
+            emptyView.visibility = View.VISIBLE
+        } else {
+            Log.d("NotesFragment", "Showing ${notesWithLabels.size} notes")
+            recyclerView.visibility = View.VISIBLE
+            emptyView.visibility = View.GONE
         }
     }
 
@@ -105,6 +136,21 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
         menu.findItem(R.id.action_delete_selected)?.isVisible = inSelectionMode && notesAdapter.getSelectedCount() > 0
 
         super.onPrepareOptionsMenu(menu)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.d("NotesFragment", "onResume called")
+        // Force refresh notes when returning from add/edit
+        viewModel.forceRefreshNotes()
+
+        // Also try a delayed refresh
+        view?.postDelayed({
+            if (isAdded) {
+                Log.d("NotesFragment", "Delayed refresh - requesting data refresh")
+                viewModel.forceRefreshNotes()
+            }
+        }, 500)
     }
 
     @Suppress("DEPRECATION")
@@ -209,8 +255,10 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
     }
 
     private fun navigateToAddEditNote(noteId: Long) {
-        val action = NotesFragmentDirections.actionNotesFragmentToAddEditNoteFragment(noteId)
-        findNavController().navigate(action)
+        val bundle = Bundle().apply {
+            putLong("noteId", noteId)
+        }
+        findNavController().navigate(R.id.action_notesFragment_to_addEditNoteFragment, bundle)
     }
 
     // NotesAdapter.NoteItemListener implementation

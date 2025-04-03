@@ -20,6 +20,11 @@ import com.xr.notes.models.Label
 import com.xr.notes.repo.NotesRepository
 import com.xr.notes.utils.AppPreferenceManager
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -36,6 +41,7 @@ class AddEditNoteFragment : Fragment() {
     private lateinit var editTextNote: EditText
     private var isEncrypted = false
     private var isSaving = false // Flag to prevent multiple saves
+    private val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,6 +68,7 @@ class AddEditNoteFragment : Fragment() {
 
         // Get arguments directly instead of using navArgs
         val noteId = arguments?.getLong("noteId", -1L) ?: -1L
+        Log.d("AddEditNoteFragment", "onViewCreated with noteId: $noteId")
 
         if (noteId != -1L) {
             // Edit existing note
@@ -71,9 +78,11 @@ class AddEditNoteFragment : Fragment() {
         observeViewModel()
     }
 
+
     private fun observeViewModel() {
         viewModel.note.observe(viewLifecycleOwner) { note ->
             note?.let {
+                Log.d("AddEditNoteFragment", "Note data received: ID=${it.id}, content=${it.content.take(20)}...")
                 editTextNote.setText(it.content)
                 isEncrypted = it.isEncrypted
 
@@ -84,8 +93,10 @@ class AddEditNoteFragment : Fragment() {
         }
 
         viewModel.saveComplete.observe(viewLifecycleOwner) { saved ->
+            Log.d("AddEditNoteFragment", "saveComplete: $saved")
             if (saved) {
-                isSaving = false // Reset the flag after save completes
+                isSaving = false
+                Log.d("AddEditNoteFragment", "Navigation back after save")
                 findNavController().navigateUp()
             }
         }
@@ -147,8 +158,16 @@ class AddEditNoteFragment : Fragment() {
             return
         }
 
-        isSaving = true // Set the flag to prevent multiple saves
-        viewModel.saveNote(content, isEncrypted)
+        Log.d("AddEditNoteFragment", "Saving note with content: ${content.take(20)}...")
+        isSaving = true
+
+        val job = viewModel.saveNote(content, isEncrypted)
+        job.invokeOnCompletion {
+            activity?.runOnUiThread {
+                Log.d("AddEditNoteFragment", "Save operation completed")
+                // The ViewModel's saveComplete LiveData will handle navigation
+            }
+        }
     }
 
     private fun saveNoteAndShowLabels() {
@@ -166,10 +185,17 @@ class AddEditNoteFragment : Fragment() {
         loadingDialog.show()
 
         isSaving = true
-        viewModel.saveNote(content, isEncrypted).invokeOnCompletion {
+        val job = viewModel.saveNote(content, isEncrypted)
+        job.invokeOnCompletion {
             activity?.runOnUiThread {
                 loadingDialog.dismiss()
-                showLabelsDialog()
+                // Make sure the note is saved before showing the labels dialog
+                if (viewModel.hasNoteBeenSaved()) {
+                    showLabelsDialog()
+                } else {
+                    Snackbar.make(requireView(), "Failed to save note", Snackbar.LENGTH_SHORT).show()
+                    isSaving = false
+                }
             }
         }
     }
@@ -187,23 +213,30 @@ class AddEditNoteFragment : Fragment() {
     }
 
     private fun showLabelsDialog() {
-        // Get all labels directly from the repository
-        val labelsLiveData = repository.getAllLabels()
-
-        // Check if we already have labels loaded
-        val existingLabels = labelsLiveData.value
-        if (existingLabels != null && existingLabels.isNotEmpty()) {
-            displayLabelsSelectionDialog(existingLabels)
-        } else {
-            // Show loading dialog while we wait for labels
+        // Get all labels from the ViewModel
+        coroutineScope.launch {
             val loadingDialog = AlertDialog.Builder(requireContext())
                 .setMessage("Loading labels...")
                 .setCancelable(false)
                 .create()
-            loadingDialog.show()
 
-            // Observe for labels
-            labelsLiveData.observe(viewLifecycleOwner) { labels ->
+            try {
+                // Safe context check
+                if (!isAdded) return@launch
+
+                loadingDialog.show()
+
+                // Fetch all labels
+                val labels = withContext(Dispatchers.IO) {
+                    repository.getAllLabels().value ?: emptyList()
+                }
+
+                // Safe context check after background work
+                if (!isAdded) {
+                    loadingDialog.dismiss()
+                    return@launch
+                }
+
                 loadingDialog.dismiss()
 
                 if (labels.isEmpty()) {
@@ -219,12 +252,14 @@ class AddEditNoteFragment : Fragment() {
                         }
                         .show()
                 } else {
-                    // Display the labels selection dialog
                     displayLabelsSelectionDialog(labels)
                 }
-
-                // Remove observer to prevent multiple callbacks
-                labelsLiveData.removeObservers(viewLifecycleOwner)
+            } catch (e: Exception) {
+                Log.e("AddEditNote", "Error loading labels", e)
+                if (isAdded && loadingDialog.isShowing) {
+                    loadingDialog.dismiss()
+                    Snackbar.make(requireView(), "Failed to load labels: ${e.message}", Snackbar.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -238,38 +273,49 @@ class AddEditNoteFragment : Fragment() {
         }
 
         // Get any existing label associations for this note
-        val noteWithLabelsLiveData = repository.getNoteWithLabels(noteId)
-        noteWithLabelsLiveData.observe(viewLifecycleOwner) { noteWithLabels ->
-            // Get the IDs of labels already associated with this note
-            val associatedLabelIds = noteWithLabels?.labels?.map { it.id } ?: emptyList()
+        coroutineScope.launch {
+            try {
+                val noteWithLabels = withContext(Dispatchers.IO) {
+                    repository.getNoteWithLabels(noteId).value
+                }
 
-            // Create the checkbox items
-            val labelNames = allLabels.map { it.name }.toTypedArray()
-            val checkedItems = allLabels.map { label ->
-                associatedLabelIds.contains(label.id)
-            }.toBooleanArray()
+                if (!isAdded) return@launch
 
-            // Show the dialog
-            MaterialAlertDialogBuilder(requireContext())
-                .setTitle(R.string.select_labels)
-                .setMultiChoiceItems(labelNames, checkedItems) { _, position, isChecked ->
-                    val labelId = allLabels[position].id
-                    if (isChecked) {
-                        viewModel.addLabelToNote(labelId)
-                    } else {
-                        viewModel.removeLabelFromNote(labelId)
+                val associatedLabels = noteWithLabels?.labels ?: emptyList()
+
+                // Get the IDs of labels already associated with this note
+                val associatedLabelIds = associatedLabels.map { it.id }
+
+                // Create the checkbox items
+                val labelNames = allLabels.map { it.name }.toTypedArray()
+                val checkedItems = allLabels.map { label ->
+                    associatedLabelIds.contains(label.id)
+                }.toBooleanArray()
+
+                // Show the dialog
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(R.string.select_labels)
+                    .setMultiChoiceItems(labelNames, checkedItems) { _, position, isChecked ->
+                        val labelId = allLabels[position].id
+                        if (isChecked) {
+                            viewModel.addLabelToNote(labelId)
+                        } else {
+                            viewModel.removeLabelFromNote(labelId)
+                        }
                     }
+                    .setPositiveButton(R.string.action_done) { dialog, _ ->
+                        dialog.dismiss()
+                    }
+                    .setNeutralButton(R.string.action_new_label) { _, _ ->
+                        showNewLabelDialog()
+                    }
+                    .show()
+            } catch (e: Exception) {
+                Log.e("AddEditNote", "Error displaying labels dialog", e)
+                if (isAdded) {
+                    Snackbar.make(requireView(), "Error displaying labels", Snackbar.LENGTH_SHORT).show()
                 }
-                .setPositiveButton(R.string.action_done) { dialog, _ ->
-                    dialog.dismiss()
-                }
-                .setNeutralButton(R.string.action_new_label) { _, _ ->
-                    showNewLabelDialog()
-                }
-                .show()
-
-            // Remove observer to prevent multiple callbacks
-            noteWithLabelsLiveData.removeObservers(viewLifecycleOwner)
+            }
         }
     }
 

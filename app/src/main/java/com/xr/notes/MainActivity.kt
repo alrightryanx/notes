@@ -1,14 +1,13 @@
 package com.xr.notes
 
-// File: app/src/main/java/com/example/notesapp/MainActivity.kt
-
-
 import android.os.Bundle
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupActionBarWithNavController
+import com.xr.notes.ui.SharedLabelViewModel
 import com.xr.notes.utils.AppPreferenceManager
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -20,12 +19,14 @@ class MainActivity : AppCompatActivity() {
     lateinit var prefManager: AppPreferenceManager
 
     private lateinit var navController: NavController
+    private val sharedLabelViewModel: SharedLabelViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // Apply theme from preferences before setting content view
         prefManager.applyTheme()
+
         // Handle window insets properly
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
@@ -37,6 +38,9 @@ class MainActivity : AppCompatActivity() {
 
         // Setup ActionBar with NavController
         setupActionBarWithNavController(navController)
+
+        // Ensure active labels are initialized
+        sharedLabelViewModel.initializeActiveLabels()
     }
 
     override fun onSupportNavigateUp(): Boolean {
