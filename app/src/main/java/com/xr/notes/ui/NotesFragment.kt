@@ -247,4 +247,12 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
             }
             .show()
     }
+
+    override fun onResume() {
+        super.onResume()
+        // Force refresh notes but maintain current sort order
+        val currentSortOrder = prefManager.getSortOrder()
+        viewModel.setSortOrder(currentSortOrder) // Explicitly set the sort order again
+        //viewModel.forceRefreshNotes()
+    }
 }

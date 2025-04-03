@@ -9,8 +9,10 @@ import com.xr.notes.models.Label
 import com.xr.notes.models.Note
 import com.xr.notes.repo.NotesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Date
 import javax.inject.Inject
 
@@ -49,8 +51,8 @@ class AddEditNoteViewModel @Inject constructor(
 
     fun hasNoteBeenSaved(): Boolean = currentNoteId != -1L
 
+    // In AddEditNoteViewModel.kt
     fun saveNote(content: String, isEncrypted: Boolean): Job {
-        // Prevent multiple concurrent save operations
         if (isSaving) return viewModelScope.launch {}
         isSaving = true
 
@@ -59,11 +61,14 @@ class AddEditNoteViewModel @Inject constructor(
                 val currentNote = _note.value
 
                 if (currentNote != null) {
-                    // Update existing note
+                    // Only update modifiedAt if content actually changed
+                    val contentChanged = currentNote.content != content || currentNote.isEncrypted != isEncrypted
+
                     val updatedNote = currentNote.copy(
                         content = content,
                         isEncrypted = isEncrypted,
-                        modifiedAt = Date()
+                        // Only update modifiedAt if content changed
+                        modifiedAt = if (contentChanged) Date() else currentNote.modifiedAt
                     )
                     repository.updateNote(updatedNote)
                 } else {
@@ -75,18 +80,20 @@ class AddEditNoteViewModel @Inject constructor(
                         modifiedAt = Date()
                     )
                     currentNoteId = repository.insertNote(newNote)
-                    Log.d("AddEditNoteVM", "New note created with ID: $currentNoteId")
                 }
 
-                _saveComplete.value = true
+                withContext(Dispatchers.Main) {
+                    _saveComplete.value = true
+                }
             } catch (e: Exception) {
-                Log.e("AddEditNoteVM", "Error saving note", e)
+                withContext(Dispatchers.Main) {
+                    _saveComplete.value = false
+                }
             } finally {
                 isSaving = false
             }
         }
     }
-
     fun getAllLabels() {
         viewModelScope.launch {
             try {
