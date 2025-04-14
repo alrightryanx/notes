@@ -15,7 +15,7 @@ import com.xr.notes.models.NoteLabelCrossRef
  */
 @Database(
     entities = [Note::class, Label::class, NoteLabelCrossRef::class],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -48,6 +48,9 @@ public abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "notes_database"
                 )
+                    // Add migrations
+                    .addMigrations(MIGRATION_1_2)
+                    // Fallback if needed
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

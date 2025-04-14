@@ -14,6 +14,7 @@ import com.xr.notes.models.NoteWithLabels
 import com.xr.notes.utils.Encryption
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.Date
 
 class NotesRepository(
     private val noteDao: NoteDao,
@@ -218,6 +219,125 @@ class NotesRepository(
             Log.d("NotesRepository", "Removed all labels from note $noteId")
         } catch (e: Exception) {
             Log.e("NotesRepository", "Error removing all labels from note", e)
+            throw e
+        }
+    }
+
+    // NEW METHODS FOR DATABASE RECOVERY
+
+    /**
+     * Checks if the database is empty and creates a sample note if needed
+     */
+    suspend fun rebuildDatabaseIfEmpty() = withContext(Dispatchers.IO) {
+        try {
+            // Check if the database is empty
+            val noteCount = noteDao.getNoteCount()
+            Log.d("NotesRepository", "Database check - current note count: $noteCount")
+
+            if (noteCount == 0) {
+                Log.w("NotesRepository", "Database appears to be empty! Creating a recovery note...")
+
+                // Create a sample note to ensure database is working
+                val sampleNote = Note(
+                    content = "Recovery Note\nThis note was created automatically because your database appeared to be empty. Previous data may have been lost due to a database error.",
+                    createdAt = Date(),
+                    modifiedAt = Date()
+                )
+                val newId = insertNote(sampleNote)
+                Log.d("NotesRepository", "Created recovery note with ID: $newId")
+            }
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Error checking and rebuilding database", e)
+
+            // Try to create a new note even if there was an error checking
+            try {
+                Log.w("NotesRepository", "Attempting to create emergency recovery note after error...")
+                val emergencyNote = Note(
+                    content = "Emergency Recovery Note\nThis note was created after a database error occurred. The app will attempt to continue functioning normally.",
+                    createdAt = Date(),
+                    modifiedAt = Date()
+                )
+                val newId = insertNote(emergencyNote)
+                Log.d("NotesRepository", "Created emergency recovery note with ID: $newId")
+            } catch (e2: Exception) {
+                Log.e("NotesRepository", "Critical error: Failed to create emergency recovery note", e2)
+            }
+        }
+    }
+
+    /**
+     * Attempts to recover database integrity
+     */
+    suspend fun attemptDatabaseRecovery() = withContext(Dispatchers.IO) {
+        try {
+            Log.d("NotesRepository", "Attempting database recovery")
+
+            // Check note count
+            val noteCount = try {
+                noteDao.getNoteCount()
+            } catch (e: Exception) {
+                Log.e("NotesRepository", "Error getting note count during recovery", e)
+                0
+            }
+
+            // Create recovery note
+            val recoveryNote = Note(
+                content = "Database Recovery Attempt\nTime: ${Date()}\nStatus: Recovery process initiated\nNote count: $noteCount",
+                createdAt = Date(),
+                modifiedAt = Date()
+            )
+
+            try {
+                val newId = insertNote(recoveryNote)
+                Log.d("NotesRepository", "Recovery note created with ID: $newId")
+            } catch (e: Exception) {
+                Log.e("NotesRepository", "Failed to create recovery note", e)
+            }
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Critical error during database recovery", e)
+        }
+    }
+
+    /**
+     * Completely resets the database while preserving schema
+     */
+    suspend fun resetDatabase() = withContext(Dispatchers.IO) {
+        try {
+            Log.w("NotesRepository", "Initiating database reset")
+
+            // Create a recovery note first (in case deletion fails)
+            val recoveryNote = Note(
+                content = "Database Reset\nThis note was created during a database reset operation.\nTime: ${Date()}\n\nIf you're seeing this note, the reset was successful.",
+                createdAt = Date(),
+                modifiedAt = Date()
+            )
+
+            try {
+                // Delete everything
+                deleteAllNotes()
+                deleteAllLabels()
+                Log.d("NotesRepository", "Database contents deleted during reset")
+
+                // Add the recovery note
+                val newId = insertNote(recoveryNote)
+                Log.d("NotesRepository", "Reset recovery note created with ID: $newId")
+            } catch (e: Exception) {
+                Log.e("NotesRepository", "Error during database reset operations", e)
+
+                // Try one more time to add a recovery note
+                try {
+                    val emergencyNote = Note(
+                        content = "Emergency Note\nA database reset was attempted but encountered errors.\nTime: ${Date()}",
+                        createdAt = Date(),
+                        modifiedAt = Date()
+                    )
+                    insertNote(emergencyNote)
+                } catch (e2: Exception) {
+                    Log.e("NotesRepository", "Failed to create emergency note after reset error", e2)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Critical error during database reset", e)
             throw e
         }
     }

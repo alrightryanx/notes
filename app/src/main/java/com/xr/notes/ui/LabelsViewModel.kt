@@ -1,5 +1,6 @@
 package com.xr.notes.ui
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
@@ -9,7 +10,9 @@ import com.xr.notes.models.Label
 import com.xr.notes.repo.NotesRepository
 import com.xr.notes.utils.ActiveLabelsStore
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -150,5 +153,48 @@ class LabelsViewModel @Inject constructor(
 
     fun getActiveLabelsIds(): Set<Long> {
         return activeLabelsStore.getActiveLabels()
+    }// Add these methods to your NotesViewModel class - no need to replace the whole file
+
+    private fun checkAndRebuildDatabase() {
+        viewModelScope.launch {
+            try {
+                repository.rebuildDatabaseIfEmpty()
+            } catch (e: Exception) {
+                Log.e("NotesViewModel", "Error checking and rebuilding database", e)
+            }
+        }
+    }
+
+    fun debugDatabaseState() {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    // Check database counts and log them
+                    val noteCount = repository.getNoteCount()
+                    Log.d("DatabaseDebug", "Database state:")
+                    Log.d("DatabaseDebug", "Note count via direct query: $noteCount")
+
+                    // Attempt to fix
+                    if (noteCount == 0) {
+                        Log.w("DatabaseDebug", "Empty database detected, attempting recovery...")
+                        repository.rebuildDatabaseIfEmpty()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("DatabaseDebug", "Error checking database state", e)
+
+                // Try recovery on exception
+                viewModelScope.launch {
+                    repository.attemptDatabaseRecovery()
+                }
+            }
+        }
+    }
+
+    // Call this method from the init block of your ViewModel
+    init {
+        checkAndRebuildDatabase() // Add this line first
+        setupObservers()
+        forceRefreshNotes()
     }
 }
