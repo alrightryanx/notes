@@ -40,9 +40,13 @@ class SharedLabelViewModel @Inject constructor(
                     // If no labels yet, ensure we're not filtering
                     activeLabelsStore.clearActiveLabels()
                 }
+
+                // Start with filtering disabled
+                _filteringByActiveEnabled.value = false
             } catch (e: Exception) {
                 // Ensure we're not filtering if there's an error
                 activeLabelsStore.clearActiveLabels()
+                _filteringByActiveEnabled.value = false
             }
         }
     }

@@ -43,6 +43,9 @@ class NotesViewModel @Inject constructor(
     private var inSelectionMode = false
     private val selectedNoteIds = mutableSetOf<Long>()
 
+    // Add this flag to control filtering
+    private var isFilteringByActive = false
+
     init {
         setupObservers()
         forceRefreshNotes()
@@ -87,8 +90,6 @@ class NotesViewModel @Inject constructor(
         }
     }
 
-    // Force a refresh of the notes list
-// In NotesViewModel.kt - update the forceRefreshNotes method
     fun forceRefreshNotes() {
         Log.d("NotesViewModel", "forceRefreshNotes called")
 
@@ -130,9 +131,11 @@ class NotesViewModel @Inject constructor(
             }
         }
     }
+
     private fun updateFilteredNotes() {
         val allNotes = _notesWithLabels.value ?: emptyList()
         val searchQuery = _searchQuery.value ?: ""
+        val activeLabelsIds = activeLabelsStore.getActiveLabels()
 
         // Filter by search query first
         val filteredBySearch = if (searchQuery.isEmpty()) {
@@ -143,7 +146,21 @@ class NotesViewModel @Inject constructor(
             }
         }
 
-        _filteredNotes.value = filteredBySearch
+        // Apply active label filtering if enabled
+        val filteredByLabels = if (isFilteringByActive && activeLabelsIds.isNotEmpty()) {
+            filteredBySearch.filter { noteWithLabels ->
+                // Include notes that have at least one active label
+                noteWithLabels.labels.any { label ->
+                    activeLabelsIds.contains(label.id)
+                }
+            }
+        } else {
+            // If filtering is disabled or no active labels, show all notes
+            filteredBySearch
+        }
+
+        Log.d("NotesViewModel", "updateFilteredNotes: Total=${allNotes.size}, Filtered=${filteredByLabels.size}, isFilteringByActive=$isFilteringByActive")
+        _filteredNotes.value = filteredByLabels
     }
 
     private fun applySortOrder(notes: List<NoteWithLabels>, sortOrder: String): List<NoteWithLabels> {
@@ -155,6 +172,14 @@ class NotesViewModel @Inject constructor(
             AppPreferenceManager.SORT_DATE_MODIFIED_DESC -> notes.sortedByDescending { it.note.modifiedAt }
             AppPreferenceManager.SORT_DATE_MODIFIED_ASC -> notes.sortedBy { it.note.modifiedAt }
             else -> notes.sortedByDescending { it.note.modifiedAt }
+        }
+    }
+
+    // Add a method to control active label filtering
+    fun setFilteringByActive(filtering: Boolean) {
+        if (isFilteringByActive != filtering) {
+            isFilteringByActive = filtering
+            updateFilteredNotes()
         }
     }
 

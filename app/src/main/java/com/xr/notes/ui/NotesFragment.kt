@@ -89,6 +89,9 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
     private fun observeViewModel() {
         Log.d("NotesFragment", "Observing ViewModel")
 
+        // Make sure filtering is disabled when opening the main notes fragment
+        viewModel.setFilteringByActive(false)
+
         viewModel.notesWithLabels.observe(viewLifecycleOwner) { notesWithLabels ->
             Log.d("NotesFragment", "Received ${notesWithLabels.size} notes from ViewModel")
             notesAdapter.submitList(notesWithLabels)
@@ -142,6 +145,9 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
         super.onResume()
         Log.d("NotesFragment", "onResume called, isReturningFromNavigation=$isReturningFromNavigation")
 
+        // Make sure filtering is disabled
+        viewModel.setFilteringByActive(false)
+
         // Force refresh notes when returning to fragment
         viewModel.forceRefreshNotes()
 
@@ -173,6 +179,7 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
             }
         }, 500)
     }
+
 
     @Suppress("DEPRECATION")
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
