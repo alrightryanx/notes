@@ -23,24 +23,85 @@ class NotesRepository(
 ) {
     // Note operations
     suspend fun getNoteCount(): Int = withContext(Dispatchers.IO) {
-        return@withContext noteDao.getNoteCount()
+        try {
+            return@withContext noteDao.getNoteCount()
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Error getting note count: ${e.message}", e)
+            return@withContext 0
+        }
     }
 
-    fun getAllNotes(): LiveData<List<Note>> = noteDao.getAllNotes()
+    fun getAllNotes(): LiveData<List<Note>> {
+        try {
+            return noteDao.getAllNotes()
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Error getting all notes: ${e.message}", e)
+            return MutableLiveData(emptyList())
+        }
+    }
 
-    fun getAllNotesSortedByTitle(): LiveData<List<Note>> = noteDao.getAllNotesSortedByTitle()
+    fun getAllNotesSortedByTitle(): LiveData<List<Note>> {
+        try {
+            return noteDao.getAllNotesSortedByTitle()
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Error getting notes sorted by title: ${e.message}", e)
+            return MutableLiveData(emptyList())
+        }
+    }
 
-    fun getAllNotesSortedByDateCreated(): LiveData<List<Note>> = noteDao.getAllNotesSortedByDateCreated()
+    fun getAllNotesSortedByDateCreated(): LiveData<List<Note>> {
+        try {
+            return noteDao.getAllNotesSortedByDateCreated()
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Error getting notes sorted by date created: ${e.message}", e)
+            return MutableLiveData(emptyList())
+        }
+    }
 
-    fun getAllNotesSortedByDateModified(): LiveData<List<Note>> = noteDao.getAllNotesSortedByDateModified()
+    fun getAllNotesSortedByDateModified(): LiveData<List<Note>> {
+        try {
+            return noteDao.getAllNotesSortedByDateModified()
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Error getting notes sorted by date modified: ${e.message}", e)
+            return MutableLiveData(emptyList())
+        }
+    }
 
-    fun getNoteById(noteId: Long): LiveData<Note> = noteDao.getNoteById(noteId)
+    fun getNoteById(noteId: Long): LiveData<Note> {
+        try {
+            return noteDao.getNoteById(noteId)
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Error getting note by ID: ${e.message}", e)
+            return MutableLiveData(null)
+        }
+    }
 
-    fun searchNotes(query: String): LiveData<List<Note>> = noteDao.searchNotes(query)
+    fun searchNotes(query: String): LiveData<List<Note>> {
+        try {
+            return noteDao.searchNotes(query)
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Error searching notes: ${e.message}", e)
+            return MutableLiveData(emptyList())
+        }
+    }
 
-    fun getAllNotesWithLabels(): LiveData<List<NoteWithLabels>> = noteDao.getAllNotesWithLabels()
+    fun getAllNotesWithLabels(): LiveData<List<NoteWithLabels>> {
+        try {
+            return noteDao.getAllNotesWithLabels()
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Error getting all notes with labels: ${e.message}", e)
+            return MutableLiveData(emptyList())
+        }
+    }
 
-    fun getNoteWithLabels(noteId: Long): LiveData<NoteWithLabels> = noteDao.getNoteWithLabels(noteId)
+    fun getNoteWithLabels(noteId: Long): LiveData<NoteWithLabels> {
+        try {
+            return noteDao.getNoteWithLabels(noteId)
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Error getting note with labels: ${e.message}", e)
+            return MutableLiveData(null)
+        }
+    }
 
     suspend fun insertNote(note: Note): Long = withContext(Dispatchers.IO) {
         try {
@@ -147,18 +208,60 @@ class NotesRepository(
         }
     }
 
-    fun getAllNotesSortedByTitleDesc(): LiveData<List<Note>> = noteDao.getAllNotesSortedByTitleDesc()
+    fun getAllNotesSortedByTitleDesc(): LiveData<List<Note>> {
+        try {
+            return noteDao.getAllNotesSortedByTitleDesc()
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Error getting notes sorted by title desc: ${e.message}", e)
+            return MutableLiveData(emptyList())
+        }
+    }
 
-    fun getAllNotesSortedByDateCreatedAsc(): LiveData<List<Note>> = noteDao.getAllNotesSortedByDateCreatedAsc()
+    fun getAllNotesSortedByDateCreatedAsc(): LiveData<List<Note>> {
+        try {
+            return noteDao.getAllNotesSortedByDateCreatedAsc()
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Error getting notes sorted by date created asc: ${e.message}", e)
+            return MutableLiveData(emptyList())
+        }
+    }
 
-    fun getAllNotesSortedByDateModifiedAsc(): LiveData<List<Note>> = noteDao.getAllNotesSortedByDateModifiedAsc()
+    fun getAllNotesSortedByDateModifiedAsc(): LiveData<List<Note>> {
+        try {
+            return noteDao.getAllNotesSortedByDateModifiedAsc()
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Error getting notes sorted by date modified asc: ${e.message}", e)
+            return MutableLiveData(emptyList())
+        }
+    }
 
     // Label operations
-    fun getAllLabels(): LiveData<List<Label>> = labelDao.getAllLabels()
+    fun getAllLabels(): LiveData<List<Label>> {
+        try {
+            return labelDao.getAllLabels()
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Error getting all labels: ${e.message}", e)
+            return MutableLiveData(emptyList())
+        }
+    }
 
-    fun getLabelById(labelId: Long): LiveData<Label> = labelDao.getLabelById(labelId)
+    fun getLabelById(labelId: Long): LiveData<Label> {
+        try {
+            return labelDao.getLabelById(labelId)
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Error getting label by ID: ${e.message}", e)
+            return MutableLiveData(null)
+        }
+    }
 
-    fun getLabelWithNotes(labelId: Long): LiveData<LabelWithNotes> = labelDao.getLabelWithNotes(labelId)
+    fun getLabelWithNotes(labelId: Long): LiveData<LabelWithNotes> {
+        try {
+            return labelDao.getLabelWithNotes(labelId)
+        } catch (e: Exception) {
+            Log.e("NotesRepository", "Error getting label with notes: ${e.message}", e)
+            return MutableLiveData(null)
+        }
+    }
 
     suspend fun updateLabel(label: Label) = withContext(Dispatchers.IO) {
         try {
@@ -223,7 +326,7 @@ class NotesRepository(
         }
     }
 
-    // NEW METHODS FOR DATABASE RECOVERY
+    // DATABASE RECOVERY METHODS
 
     /**
      * Checks if the database is empty and creates a sample note if needed
@@ -231,7 +334,13 @@ class NotesRepository(
     suspend fun rebuildDatabaseIfEmpty() = withContext(Dispatchers.IO) {
         try {
             // Check if the database is empty
-            val noteCount = noteDao.getNoteCount()
+            val noteCount = try {
+                noteDao.getNoteCount()
+            } catch (e: Exception) {
+                Log.e("NotesRepository", "Error getting note count for rebuild check", e)
+                0
+            }
+
             Log.d("NotesRepository", "Database check - current note count: $noteCount")
 
             if (noteCount == 0) {
@@ -243,8 +352,16 @@ class NotesRepository(
                     createdAt = Date(),
                     modifiedAt = Date()
                 )
-                val newId = insertNote(sampleNote)
-                Log.d("NotesRepository", "Created recovery note with ID: $newId")
+
+                try {
+                    val newId = insertNote(sampleNote)
+                    Log.d("NotesRepository", "Created recovery note with ID: $newId")
+                } catch (e: Exception) {
+                    Log.e("NotesRepository", "Failed to create recovery note", e)
+
+                    // Attempt emergency recovery
+                    attemptDatabaseRecovery()
+                }
             }
         } catch (e: Exception) {
             Log.e("NotesRepository", "Error checking and rebuilding database", e)
@@ -261,6 +378,9 @@ class NotesRepository(
                 Log.d("NotesRepository", "Created emergency recovery note with ID: $newId")
             } catch (e2: Exception) {
                 Log.e("NotesRepository", "Critical error: Failed to create emergency recovery note", e2)
+
+                // Last resort - try database reset
+                resetDatabase()
             }
         }
     }
@@ -292,9 +412,13 @@ class NotesRepository(
                 Log.d("NotesRepository", "Recovery note created with ID: $newId")
             } catch (e: Exception) {
                 Log.e("NotesRepository", "Failed to create recovery note", e)
+                // If we can't even create a note, reset the database
+                resetDatabase()
             }
         } catch (e: Exception) {
             Log.e("NotesRepository", "Critical error during database recovery", e)
+            // Last resort - reset database
+            resetDatabase()
         }
     }
 
@@ -321,6 +445,15 @@ class NotesRepository(
                 // Add the recovery note
                 val newId = insertNote(recoveryNote)
                 Log.d("NotesRepository", "Reset recovery note created with ID: $newId")
+
+                // Create a default label
+                val defaultLabel = Label(name = "Default", color = 0)
+                val labelId = insertLabel(defaultLabel)
+                Log.d("NotesRepository", "Created default label with ID: $labelId")
+
+                // Associate the label with the note
+                addLabelToNote(newId, labelId)
+
             } catch (e: Exception) {
                 Log.e("NotesRepository", "Error during database reset operations", e)
 

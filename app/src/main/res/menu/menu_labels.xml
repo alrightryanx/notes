@@ -8,4 +8,9 @@
         android:title="@string/add_new_label"
         app:showAsAction="ifRoom" / -->
 
+        <item
+            android:id="@+id/action_database_recovery"
+            android:title="Database Recovery"
+            app:showAsAction="never" />
+
 </menu>
