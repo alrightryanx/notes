@@ -81,6 +81,7 @@ class AddEditNoteFragment : Fragment() {
         observeViewModel()
     }
 
+
     private fun observeViewModel() {
         viewModel.note.observe(viewLifecycleOwner) { note ->
             note?.let {

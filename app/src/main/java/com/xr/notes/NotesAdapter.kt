@@ -1,5 +1,6 @@
 package com.xr.notes
 
+import android.annotation.SuppressLint
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,6 +10,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.xr.notes.models.Note
+import com.xr.notes.models.NoteWithLabels
 import com.xr.notes.utils.AppPreferenceManager
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -16,7 +18,7 @@ import java.util.Locale
 class NotesAdapter(
     private val prefManager: AppPreferenceManager,
     private val listener: NoteItemListener
-) : ListAdapter<Note, NotesAdapter.NoteViewHolder>(NotesDiffCallback()) {
+) : ListAdapter<NoteWithLabels, NotesAdapter.NoteViewHolder>(NotesDiffCallback()) {
 
     private var selectedNotes = mutableSetOf<Long>()
     private var selectionMode = false
@@ -25,7 +27,7 @@ class NotesAdapter(
         fun onNoteClicked(note: Note)
         fun onNoteSelected(note: Note, isSelected: Boolean)
         fun onSelectionChanged(count: Int)
-        fun onRequestDeleteNote(note: Note) // Added method for direct delete
+        fun onRequestDeleteNote(note: Note)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): NoteViewHolder {
@@ -35,8 +37,8 @@ class NotesAdapter(
     }
 
     override fun onBindViewHolder(holder: NoteViewHolder, position: Int) {
-        val note = getItem(position)
-        holder.bind(note)
+        val noteWithLabels = getItem(position)
+        holder.bind(noteWithLabels)
     }
 
     fun toggleSelectionMode(): Boolean {
@@ -45,7 +47,7 @@ class NotesAdapter(
             selectedNotes.clear()
             listener.onSelectionChanged(0)
         }
-        notifyDataSetChanged() // Make sure this is called
+        notifyDataSetChanged()
         return selectionMode
     }
 
@@ -56,8 +58,8 @@ class NotesAdapter(
     fun getSelectedCount() = selectedNotes.size
 
     fun selectAllNotes() {
-        currentList.forEach { note ->
-            selectedNotes.add(note.id)
+        currentList.forEach { noteWithLabels ->
+            selectedNotes.add(noteWithLabels.note.id)
         }
         listener.onSelectionChanged(selectedNotes.size)
         notifyDataSetChanged()
@@ -74,6 +76,7 @@ class NotesAdapter(
         private val titleTextView: TextView = itemView.findViewById(R.id.textNoteTitle)
         private val summaryTextView: TextView = itemView.findViewById(R.id.textNoteSummary)
         private val dateTextView: TextView = itemView.findViewById(R.id.textNoteDate)
+        private val labelsTextView: TextView = itemView.findViewById(R.id.textNoteLabels)
 
         init {
             // Set text size from preferences
@@ -81,15 +84,16 @@ class NotesAdapter(
             titleTextView.textSize = textSize
             summaryTextView.textSize = textSize - 2
             dateTextView.textSize = textSize - 4
+            labelsTextView.textSize = textSize - 4
 
             itemView.setOnClickListener {
                 val position = adapterPosition
                 if (position != RecyclerView.NO_POSITION) {
-                    val note = getItem(position)
+                    val noteWithLabels = getItem(position)
                     if (selectionMode) {
-                        toggleNoteSelection(note)
+                        toggleNoteSelection(noteWithLabels.note)
                     } else {
-                        listener.onNoteClicked(note)
+                        listener.onNoteClicked(noteWithLabels.note)
                     }
                 }
             }
@@ -97,16 +101,16 @@ class NotesAdapter(
             itemView.setOnLongClickListener {
                 val position = adapterPosition
                 if (position != RecyclerView.NO_POSITION) {
-                    val note = getItem(position)
+                    val noteWithLabels = getItem(position)
                     if (!selectionMode) {
                         // Start selection mode and select this note
                         selectionMode = true
-                        toggleNoteSelection(note)
-                        notifyDataSetChanged() // Add this line to refresh all views
+                        toggleNoteSelection(noteWithLabels.note)
+                        notifyDataSetChanged()
                         return@setOnLongClickListener true
                     } else {
                         // If already in selection mode, request to delete this note directly
-                        listener.onRequestDeleteNote(note)
+                        listener.onRequestDeleteNote(noteWithLabels.note)
                         return@setOnLongClickListener true
                     }
                 }
@@ -116,13 +120,16 @@ class NotesAdapter(
             checkBox.setOnClickListener {
                 val position = adapterPosition
                 if (position != RecyclerView.NO_POSITION) {
-                    val note = getItem(position)
-                    toggleNoteSelection(note)
+                    val noteWithLabels = getItem(position)
+                    toggleNoteSelection(noteWithLabels.note)
                 }
             }
         }
 
-        fun bind(note: Note) {
+        fun bind(noteWithLabels: NoteWithLabels) {
+            val note = noteWithLabels.note
+            val labels = noteWithLabels.labels
+
             titleTextView.text = note.title
             summaryTextView.text = note.summary
 
@@ -134,10 +141,21 @@ class NotesAdapter(
             checkBox.visibility = if (selectionMode) View.VISIBLE else View.GONE
             checkBox.isChecked = selectedNotes.contains(note.id)
 
+            // Display active labels
+            if (labels.isNotEmpty()) {
+                val labelNames = labels.joinToString(", ") { it.name }
+                labelsTextView.text = labelNames
+                labelsTextView.visibility = View.VISIBLE
+            } else {
+                labelsTextView.visibility = View.GONE
+            }
+
             // Encrypted note indicator
             if (note.isEncrypted) {
                 // Add a lock icon or indicator
-                // This would be implemented with a separate view in the layout
+                titleTextView.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.baseline_lock_24, 0)
+            } else {
+                titleTextView.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             }
         }
 
@@ -156,15 +174,24 @@ class NotesAdapter(
         }
     }
 
-    class NotesDiffCallback : DiffUtil.ItemCallback<Note>() {
-        override fun areItemsTheSame(oldItem: Note, newItem: Note): Boolean {
-            return oldItem.id == newItem.id
+    class NotesDiffCallback : DiffUtil.ItemCallback<NoteWithLabels>() {
+        override fun areItemsTheSame(oldItem: NoteWithLabels, newItem: NoteWithLabels): Boolean {
+            return oldItem.note.id == newItem.note.id
         }
 
-        override fun areContentsTheSame(oldItem: Note, newItem: Note): Boolean {
-            return oldItem.content == newItem.content &&
-                    oldItem.modifiedAt == newItem.modifiedAt &&
-                    oldItem.isEncrypted == newItem.isEncrypted
+        @SuppressLint("DiffUtilEquals")
+        override fun areContentsTheSame(oldItem: NoteWithLabels, newItem: NoteWithLabels): Boolean {
+            // Compare note content
+            val notesAreSame = oldItem.note.content == newItem.note.content &&
+                    oldItem.note.modifiedAt == newItem.note.modifiedAt &&
+                    oldItem.note.isEncrypted == newItem.note.isEncrypted
+
+            // Compare labels
+            val oldLabels = oldItem.labels.map { it.id }.toSet()
+            val newLabels = newItem.labels.map { it.id }.toSet()
+            val labelsAreSame = oldLabels == newLabels
+
+            return notesAreSame && labelsAreSame
         }
     }
 }

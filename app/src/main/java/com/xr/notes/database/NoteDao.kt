@@ -34,6 +34,9 @@ interface NoteDao {
     @Query("SELECT * FROM notes")
     fun getAllNotesWithLabels(): LiveData<List<NoteWithLabels>>
 
+    @Query("SELECT COUNT(*) FROM notes")
+    suspend fun getNoteCount(): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(note: Note): Long
 
