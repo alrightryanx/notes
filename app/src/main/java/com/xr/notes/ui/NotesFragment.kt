@@ -2,13 +2,16 @@ package com.xr.notes.ui
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.SearchView
+import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -17,6 +20,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
+import com.xr.notes.MainActivity
 import com.xr.notes.NotesAdapter
 import com.xr.notes.R
 import com.xr.notes.models.Note
@@ -31,13 +35,19 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
     lateinit var prefManager: AppPreferenceManager
 
     private val viewModel: NotesViewModel by viewModels()
+
     private lateinit var notesAdapter: NotesAdapter
     private lateinit var recyclerView: RecyclerView
     private lateinit var fabAddNote: FloatingActionButton
+    private lateinit var emptyView: View
+
+    // Flag to control auto-reopen behavior
+    private var isReturningFromNavigation = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setHasOptionsMenu(true)
+        Log.d("NotesFragment", "onCreate called")
     }
 
     override fun onCreateView(
@@ -45,11 +55,12 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
+        Log.d("NotesFragment", "onCreateView called")
         val view = inflater.inflate(R.layout.fragment_notes, container, false)
 
         recyclerView = view.findViewById(R.id.recyclerViewNotes)
         fabAddNote = view.findViewById(R.id.fabAddNote)
-
+        emptyView = view.findViewById(R.id.emptyView)
         setupRecyclerView()
         setupFab()
         observeViewModel()
@@ -58,6 +69,7 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
     }
 
     private fun setupRecyclerView() {
+        Log.d("NotesFragment", "Setting up RecyclerView")
         notesAdapter = NotesAdapter(prefManager, this)
         recyclerView.apply {
             layoutManager = LinearLayoutManager(requireContext())
@@ -67,13 +79,35 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
 
     private fun setupFab() {
         fabAddNote.setOnClickListener {
+            // Clear any last opened note when explicitly creating a new one
+            (activity as? MainActivity)?.clearLastOpenedNote()
+            isReturningFromNavigation = true
             navigateToAddEditNote(-1L)
         }
     }
 
     private fun observeViewModel() {
-        viewModel.notes.observe(viewLifecycleOwner) { notes ->
-            notesAdapter.submitList(notes)
+        Log.d("NotesFragment", "Observing ViewModel")
+
+        // Make sure filtering is disabled when opening the main notes fragment
+        viewModel.setFilteringByActive(false)
+
+        viewModel.notesWithLabels.observe(viewLifecycleOwner) { notesWithLabels ->
+            Log.d("NotesFragment", "Received ${notesWithLabels.size} notes from ViewModel")
+            notesAdapter.submitList(notesWithLabels)
+            updateEmptyStateVisibility(notesWithLabels)
+        }
+    }
+
+    private fun updateEmptyStateVisibility(notesWithLabels: List<Any>) {
+        if (notesWithLabels.isEmpty()) {
+            Log.d("NotesFragment", "No notes to display, showing empty state")
+            recyclerView.visibility = View.GONE
+            emptyView.visibility = View.VISIBLE
+        } else {
+            Log.d("NotesFragment", "Showing ${notesWithLabels.size} notes")
+            recyclerView.visibility = View.VISIBLE
+            emptyView.visibility = View.GONE
         }
     }
 
@@ -107,6 +141,46 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
         super.onPrepareOptionsMenu(menu)
     }
 
+    override fun onResume() {
+        super.onResume()
+        Log.d("NotesFragment", "onResume called, isReturningFromNavigation=$isReturningFromNavigation")
+
+        // Make sure filtering is disabled
+        viewModel.setFilteringByActive(false)
+
+        // Force refresh notes when returning to fragment
+        viewModel.forceRefreshNotes()
+
+        // Only check for last opened note if not returning from navigation
+        if (!isReturningFromNavigation) {
+            val mainActivity = activity as? MainActivity
+            val lastNoteId = mainActivity?.getLastOpenedNote() ?: -1L
+
+            Log.d("NotesFragment", "Last opened note ID: $lastNoteId")
+
+            if (lastNoteId != -1L) {
+                Log.d("NotesFragment", "Reopening note ID: $lastNoteId")
+
+                // Set flag before navigating
+                isReturningFromNavigation = true
+                navigateToAddEditNote(lastNoteId)
+                return
+            }
+        }
+
+        // Reset the flag for future navigation
+        isReturningFromNavigation = false
+
+        // Also try a delayed refresh for UI
+        view?.postDelayed({
+            if (isAdded) {
+                Log.d("NotesFragment", "Delayed refresh - requesting data refresh")
+                viewModel.forceRefreshNotes()
+            }
+        }, 500)
+    }
+
+
     @Suppress("DEPRECATION")
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
@@ -135,6 +209,7 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
                 true
             }
             R.id.action_labels -> {
+                isReturningFromNavigation = true
                 findNavController().navigate(R.id.action_notesFragment_to_labelsFragment)
                 true
             }
@@ -144,10 +219,12 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
                 true
             }
             R.id.action_restore -> {
+                isReturningFromNavigation = true
                 findNavController().navigate(R.id.action_notesFragment_to_restoreFragment)
                 true
             }
             R.id.action_settings -> {
+                isReturningFromNavigation = true
                 findNavController().navigate(R.id.action_notesFragment_to_settingsFragment)
                 true
             }
@@ -180,6 +257,13 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
             .setTitle(if (noteIds.size > 1) getString(R.string.confirm_delete, noteIds.size) else getString(R.string.confirm_delete))
             .setMessage(getString(R.string.confirm_delete_message))
             .setPositiveButton(R.string.action_delete) { _, _ ->
+                // Clear last opened note if it's being deleted
+                val mainActivity = activity as? MainActivity
+                val lastOpenedNoteId = mainActivity?.getLastOpenedNote() ?: -1L
+                if (noteIds.contains(lastOpenedNoteId)) {
+                    mainActivity?.clearLastOpenedNote()
+                }
+
                 // First delete the notes in the ViewModel which will update the UI immediately
                 viewModel.deleteNotes(noteIds)
 
@@ -209,12 +293,15 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
     }
 
     private fun navigateToAddEditNote(noteId: Long) {
-        val action = NotesFragmentDirections.actionNotesFragmentToAddEditNoteFragment(noteId)
-        findNavController().navigate(action)
+        val bundle = Bundle().apply {
+            putLong("noteId", noteId)
+        }
+        findNavController().navigate(R.id.action_notesFragment_to_addEditNoteFragment, bundle)
     }
 
     // NotesAdapter.NoteItemListener implementation
     override fun onNoteClicked(note: Note) {
+        isReturningFromNavigation = true
         navigateToAddEditNote(note.id)
     }
 
@@ -227,6 +314,13 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
     }
 
     override fun onRequestDeleteNote(note: Note) {
+        // Clear last opened note if it's being deleted
+        val mainActivity = activity as? MainActivity
+        val lastOpenedNoteId = mainActivity?.getLastOpenedNote() ?: -1L
+        if (note.id == lastOpenedNoteId) {
+            mainActivity?.clearLastOpenedNote()
+        }
+
         // Single note deletion request (from long-press)
         AlertDialog.Builder(requireContext())
             .setTitle(R.string.confirm_delete)

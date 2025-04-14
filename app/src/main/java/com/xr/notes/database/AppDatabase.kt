@@ -15,21 +15,21 @@ import com.xr.notes.models.NoteLabelCrossRef
  */
 @Database(
     entities = [Note::class, Label::class, NoteLabelCrossRef::class],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
-public abstract class AppDatabase : RoomDatabase() {
+abstract class AppDatabase : RoomDatabase() {
 
     /**
      * Provides access to the Note DAO
      */
-    public abstract fun noteDao(): NoteDao
+    abstract fun noteDao(): NoteDao
 
     /**
      * Provides access to the Label DAO
      */
-    public abstract fun labelDao(): LabelDao
+    abstract fun labelDao(): LabelDao
 
     companion object {
         // Singleton prevents multiple instances of database opening at the same time
@@ -39,7 +39,7 @@ public abstract class AppDatabase : RoomDatabase() {
         /**
          * Gets the singleton database instance.
          */
-        public fun getDatabase(context: Context): AppDatabase {
+        fun getDatabase(context: Context): AppDatabase {
             // if the INSTANCE is not null, then return it,
             // if it is, then create the database
             return INSTANCE ?: synchronized(this) {
@@ -48,6 +48,9 @@ public abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "notes_database"
                 )
+                    // Add migrations
+                    .addMigrations(MIGRATION_1_2)
+                    // Enable destructive migration as last resort
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
