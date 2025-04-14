@@ -81,6 +81,19 @@ class AddEditNoteFragment : Fragment() {
         observeViewModel()
     }
 
+    override fun onPause() {
+        super.onPause()
+
+        // Only auto-save if not already saving through the save button
+        if (!isSaving && ::editTextNote.isInitialized) {
+            val content = editTextNote.text.toString().trim()
+            if (content.isNotEmpty()) {
+                Log.d("AddEditNoteFragment", "Auto-saving on pause")
+                isSaving = true
+                viewModel.saveNote(content, isEncrypted)
+            }
+        }
+    }
 
     private fun observeViewModel() {
         viewModel.note.observe(viewLifecycleOwner) { note ->
@@ -199,18 +212,6 @@ class AddEditNoteFragment : Fragment() {
                     Snackbar.make(requireView(), "Failed to save note", Snackbar.LENGTH_SHORT).show()
                     isSaving = false
                 }
-            }
-        }
-    }
-
-    override fun onPause() {
-        super.onPause()
-        // Only auto-save if not already saving through the save button
-        if (!isSaving && ::editTextNote.isInitialized) {
-            val content = editTextNote.text.toString().trim()
-            if (content.isNotEmpty()) {
-                isSaving = true
-                viewModel.saveNote(content, isEncrypted)
             }
         }
     }

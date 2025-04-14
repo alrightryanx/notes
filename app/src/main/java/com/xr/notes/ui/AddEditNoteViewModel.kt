@@ -51,6 +51,12 @@ class AddEditNoteViewModel @Inject constructor(
 
     fun hasNoteBeenSaved(): Boolean = currentNoteId != -1L
 
+    // Check if the content has actually changed from the current note
+    fun hasContentChanged(newContent: String): Boolean {
+        val currentContent = _note.value?.content ?: ""
+        return currentContent != newContent
+    }
+
     // In AddEditNoteViewModel.kt
     fun saveNote(content: String, isEncrypted: Boolean): Job {
         if (isSaving) return viewModelScope.launch {}

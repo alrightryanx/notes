@@ -14,7 +14,6 @@ import android.widget.SearchView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -36,7 +35,6 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
     lateinit var prefManager: AppPreferenceManager
 
     private val viewModel: NotesViewModel by viewModels()
-    private val sharedLabelViewModel: SharedLabelViewModel by activityViewModels()
 
     private lateinit var notesAdapter: NotesAdapter
     private lateinit var recyclerView: RecyclerView
@@ -44,7 +42,7 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
     private lateinit var emptyView: View
 
     // Flag to control auto-reopen behavior
-    private var shouldCheckLastOpenedNote = true
+    private var isReturningFromNavigation = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,6 +81,7 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
         fabAddNote.setOnClickListener {
             // Clear any last opened note when explicitly creating a new one
             (activity as? MainActivity)?.clearLastOpenedNote()
+            isReturningFromNavigation = true
             navigateToAddEditNote(-1L)
         }
     }
@@ -141,36 +140,32 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
 
     override fun onResume() {
         super.onResume()
-        Log.d("NotesFragment", "onResume called")
+        Log.d("NotesFragment", "onResume called, isReturningFromNavigation=$isReturningFromNavigation")
 
-        // Force refresh notes when returning from add/edit
+        // Force refresh notes when returning to fragment
         viewModel.forceRefreshNotes()
 
-        // Check if we need to reopen a note
-        if (shouldCheckLastOpenedNote) {
+        // Only check for last opened note if not returning from navigation
+        if (!isReturningFromNavigation) {
             val mainActivity = activity as? MainActivity
             val lastNoteId = mainActivity?.getLastOpenedNote() ?: -1L
 
+            Log.d("NotesFragment", "Last opened note ID: $lastNoteId")
+
             if (lastNoteId != -1L) {
-                // Clear the last note reference to prevent loops
-                Log.d("NotesFragment", "Found last opened note ID: $lastNoteId, reopening it")
-                mainActivity.clearLastOpenedNote()
+                Log.d("NotesFragment", "Reopening note ID: $lastNoteId")
 
-                // Set the flag to prevent reopening during the next onResume
-                shouldCheckLastOpenedNote = false
-
-                // Open the note
+                // Set flag before navigating
+                isReturningFromNavigation = true
                 navigateToAddEditNote(lastNoteId)
-
-                // Don't continue with normal onResume processing since we're navigating away
                 return
             }
         }
 
-        // Reset the flag for future onResume calls
-        shouldCheckLastOpenedNote = true
+        // Reset the flag for future navigation
+        isReturningFromNavigation = false
 
-        // Also try a delayed refresh
+        // Also try a delayed refresh for UI
         view?.postDelayed({
             if (isAdded) {
                 Log.d("NotesFragment", "Delayed refresh - requesting data refresh")
@@ -207,6 +202,7 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
                 true
             }
             R.id.action_labels -> {
+                isReturningFromNavigation = true
                 findNavController().navigate(R.id.action_notesFragment_to_labelsFragment)
                 true
             }
@@ -216,10 +212,12 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
                 true
             }
             R.id.action_restore -> {
+                isReturningFromNavigation = true
                 findNavController().navigate(R.id.action_notesFragment_to_restoreFragment)
                 true
             }
             R.id.action_settings -> {
+                isReturningFromNavigation = true
                 findNavController().navigate(R.id.action_notesFragment_to_settingsFragment)
                 true
             }
@@ -296,6 +294,7 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
 
     // NotesAdapter.NoteItemListener implementation
     override fun onNoteClicked(note: Note) {
+        isReturningFromNavigation = true
         navigateToAddEditNote(note.id)
     }
 

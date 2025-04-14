@@ -25,7 +25,6 @@ import dagger.hilt.android.AndroidEntryPoint
 class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
 
     private val viewModel: LabelsViewModel by viewModels()
-    private val sharedViewModel: SharedLabelViewModel by activityViewModels()
 
     private lateinit var labelsAdapter: LabelsAdapter
     private lateinit var recyclerView: RecyclerView
@@ -50,8 +49,7 @@ class LabelsFragment : Fragment(), LabelsAdapter.LabelItemListener {
         setupFab()
         observeViewModel()
 
-        // Initialize active labels
-        sharedViewModel.initializeActiveLabels()
+        // Force refresh the labels
         viewModel.forceRefreshLabels()
 
         return view
