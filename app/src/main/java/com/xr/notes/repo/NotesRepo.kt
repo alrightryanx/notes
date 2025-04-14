@@ -31,6 +31,10 @@ class NotesRepository @Inject constructor(
     fun getNoteWithLabels(noteId: Long): LiveData<NoteWithLabels> =
         noteDao.getNoteWithLabels(noteId)
 
+    suspend fun getAllNotesDirect(): List<Note> = noteDao.getAllNotesDirect()
+
+    suspend fun getAllNotesWithLabelsDirect(): List<NoteWithLabels> = noteDao.getAllNotesWithLabelsDirect()
+
     suspend fun insertNote(note: Note): Long = noteDao.insert(note)
 
     suspend fun updateNote(note: Note) = noteDao.update(note)

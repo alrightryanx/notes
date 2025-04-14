@@ -10,6 +10,13 @@ import com.xr.notes.models.NoteWithLabels
 @Dao
 interface NoteDao {
 
+    @Query("SELECT * FROM notes")
+    suspend fun getAllNotesDirect(): List<Note>
+
+    @Transaction
+    @Query("SELECT * FROM notes")
+    suspend fun getAllNotesWithLabelsDirect(): List<NoteWithLabels>
+
     // --- CrossRef support ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun addLabelToNote(crossRef: NoteLabelCrossRef)
@@ -42,9 +49,6 @@ interface NoteDao {
     @Transaction
     @Query("SELECT * FROM notes")
     fun getAllNotesWithLabels(): LiveData<List<NoteWithLabels>>
-
-    @Query("SELECT COUNT(*) FROM notes")
-    suspend fun getNoteCount(): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(note: Note): Long
