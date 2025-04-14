@@ -63,10 +63,8 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
         recyclerView = view.findViewById(R.id.recyclerViewNotes)
         fabAddNote = view.findViewById(R.id.fabAddNote)
         emptyView = view.findViewById(R.id.emptyView)
-
         setupRecyclerView()
         setupFab()
-
         observeViewModel()
 
         return view
