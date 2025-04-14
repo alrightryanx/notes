@@ -21,29 +21,22 @@ class BackupWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            // Get all notes and labels
-            val notesLiveData = repository.getAllNotes()
-            val labelsLiveData = repository.getAllLabels()
+            // Get all notes with their labels directly from suspend DAO method
+            val notesWithLabels = repository.getAllNotesWithLabels()
+            val labels = repository.getAllLabelsDirect()
 
-            // Wait for the live data to emit values
-            var notes = notesLiveData.value ?: emptyList()
-            var labels = labelsLiveData.value ?: emptyList()
-
-            // If the live data hasn't emitted values yet, try to get them manually
-            if (notes.isEmpty()) {
-                val notesWithLabels = repository.getAllNotesWithLabels().value ?: emptyList()
-                notes = notesWithLabels.map { it.note }
+            // Extract notes and cross-references
+            val notes = notesWithLabels.map { it.note }
+            val crossRefs = notesWithLabels.flatMap { noteWithLabels ->
+                noteWithLabels.labels.map { label ->
+                    NoteLabelCrossRef(noteWithLabels.note.id, label.id)
+                }
             }
 
-            if (labels.isEmpty()) {
-                // This would need a method to get all labels with their notes
-                // For now, we'll use an empty list if we can't get labels
-            }
+            // Get all labels (LiveData-less, you may want to create a suspend method)
+            //val labels = repository.getAllLabels().value ?: emptyList()
 
-            // This would need to be expanded to get the actual cross references
-            val crossRefs = mutableListOf<NoteLabelCrossRef>()
-
-            // Create automatic backup
+            // Create the backup
             backupManager.createBackup(notes, labels, crossRefs)
 
             Result.success()

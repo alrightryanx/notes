@@ -1,5 +1,6 @@
 package com.xr.notes.database
 
+import androidx.compose.material3.Label
 import androidx.lifecycle.LiveData
 import androidx.room.*
 import com.xr.notes.models.Note
@@ -8,17 +9,25 @@ import com.xr.notes.models.NoteWithLabels
 
 @Dao
 interface NoteDao {
-    @Query("SELECT * FROM notes ORDER BY modifiedAt DESC")
-    fun getAllNotes(): LiveData<List<Note>>
 
-    @Query("SELECT * FROM notes ORDER BY content ASC")
-    fun getAllNotesSortedByTitle(): LiveData<List<Note>>
+    // --- CrossRef support ---
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun addLabelToNote(crossRef: NoteLabelCrossRef)
+
+    @Query("DELETE FROM note_label_cross_ref WHERE noteId = :noteId AND labelId = :labelId")
+    suspend fun removeLabelFromNote(noteId: Long, labelId: Long)
+
+    @Query("SELECT * FROM notes ORDER BY modifiedAt DESC")
+    fun getAllNotesSortedByDateModified(): LiveData<List<Note>>
 
     @Query("SELECT * FROM notes ORDER BY createdAt DESC")
     fun getAllNotesSortedByDateCreated(): LiveData<List<Note>>
 
+    @Query("SELECT * FROM notes ORDER BY content COLLATE NOCASE ASC")
+    fun getAllNotesSortedByTitle(): LiveData<List<Note>>
+
     @Query("SELECT * FROM notes ORDER BY modifiedAt DESC")
-    fun getAllNotesSortedByDateModified(): LiveData<List<Note>>
+    fun getAllNotes(): LiveData<List<Note>>
 
     @Query("SELECT * FROM notes WHERE id = :noteId")
     fun getNoteById(noteId: Long): LiveData<Note>

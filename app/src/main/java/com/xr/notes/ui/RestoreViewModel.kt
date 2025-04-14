@@ -3,6 +3,7 @@ package com.xr.notes.ui
 // File: app/src/main/java/com/example/notesapp/ui/settings/RestoreViewModel.kt
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -61,6 +62,11 @@ class RestoreViewModel @Inject constructor(
                 }
 
                 _restoreResult.value = RestoreResult.Success
+                Log.d("RestoreVM", "Restored notes count: ${backupData.notes.size}")
+
+                // Trigger reloading notes (if needed)
+                //repository.refreshNotes()
+
             } catch (e: Exception) {
                 _restoreResult.value = RestoreResult.Error(e.message ?: "Unknown error")
             }

@@ -7,6 +7,10 @@ import com.xr.notes.models.LabelWithNotes
 
 @Dao
 interface LabelDao {
+
+    @Query("SELECT * FROM labels")
+    suspend fun getAllLabelsDirect(): List<Label>
+
     @Query("SELECT * FROM labels ORDER BY name ASC")
     fun getAllLabels(): LiveData<List<Label>>
 

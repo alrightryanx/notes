@@ -23,19 +23,17 @@ class NotesViewModel @Inject constructor(
     private val backupManager: BackupManager
 ) : ViewModel() {
 
-    private val _searchQuery = MutableLiveData<String>("")
+    private val _searchQuery = MutableLiveData("")
     private val notesSource = MediatorLiveData<List<Note>>()
     private val _currentNotes = MutableLiveData<List<Note>>(listOf())
 
     val notes: LiveData<List<Note>> = notesSource
 
     init {
-        // Initial sort order from preferences
         updateSortOrder(prefManager.getSortOrder())
     }
 
     private fun updateSortOrder(sortOrder: String) {
-        notesSource.removeSource(repository.getAllNotes())
         notesSource.removeSource(repository.getAllNotesSortedByTitle())
         notesSource.removeSource(repository.getAllNotesSortedByDateCreated())
         notesSource.removeSource(repository.getAllNotesSortedByDateModified())
@@ -49,25 +47,21 @@ class NotesViewModel @Inject constructor(
 
         notesSource.addSource(source) { notesList ->
             _currentNotes.value = notesList
-            val query = _searchQuery.value ?: ""
-            if (query.isEmpty()) {
-                notesSource.value = notesList
-            } else {
-                notesSource.value = notesList.filter { note ->
-                    note.content.contains(query, ignoreCase = true)
-                }
-            }
+            applySearchFilter(notesList)
         }
     }
 
     fun searchNotes(query: String) {
         _searchQuery.value = query
+        _currentNotes.value?.let { applySearchFilter(it) }
+    }
 
-        // Trigger filtering of current list
-        _currentNotes.value?.let { notes ->
-            notesSource.value = notes.filter { note ->
-                note.content.contains(query, ignoreCase = true)
-            }
+    private fun applySearchFilter(notes: List<Note>) {
+        val query = _searchQuery.value ?: ""
+        notesSource.value = if (query.isBlank()) {
+            notes
+        } else {
+            notes.filter { it.content.contains(query, ignoreCase = true) }
         }
     }
 
@@ -77,50 +71,36 @@ class NotesViewModel @Inject constructor(
     }
 
     fun deleteNotes(noteIds: List<Long>) {
-        // Immediately update the UI
         _currentNotes.value?.let { currentList ->
-            val updatedList = currentList.filter { note -> note.id !in noteIds }
-            notesSource.value = updatedList
+            val updatedList = currentList.filterNot { note -> note.id in noteIds }
             _currentNotes.value = updatedList
+            notesSource.value = updatedList
         }
 
-        // Then perform the actual database deletion
         viewModelScope.launch(Dispatchers.IO) {
             for (noteId in noteIds) {
-                try {
-                    val note = repository.getNoteById(noteId).value
-                    if (note != null) {
-                        repository.deleteNote(note)
-                    }
-                } catch (e: Exception) {
-                    // Log error if needed
+                repository.getNoteById(noteId).value?.let {
+                    repository.deleteNote(it)
                 }
             }
         }
     }
 
     fun deleteNote(note: Note) {
-        // Immediately update the UI
         _currentNotes.value?.let { currentList ->
             val updatedList = currentList.filter { it.id != note.id }
-            notesSource.value = updatedList
             _currentNotes.value = updatedList
+            notesSource.value = updatedList
         }
 
-        // Then perform the actual database deletion
         viewModelScope.launch(Dispatchers.IO) {
-            try {
-                repository.deleteNote(note)
-            } catch (e: Exception) {
-                // Log error if needed
-            }
+            repository.deleteNote(note)
         }
     }
 
     fun createBackup() {
         viewModelScope.launch {
             try {
-                // Get all notes, labels, and their relationships
                 val notes = withContext(Dispatchers.IO) {
                     repository.getAllNotes().value ?: emptyList()
                 }
@@ -129,13 +109,10 @@ class NotesViewModel @Inject constructor(
                     repository.getAllLabels().value ?: emptyList()
                 }
 
-                // This would need to be expanded to get the actual cross references
                 val crossRefs = mutableListOf<NoteLabelCrossRef>()
 
-                // Create the backup
                 backupManager.createBackup(notes, labels, crossRefs)
-            } catch (e: Exception) {
-                // Log error if needed
+            } catch (_: Exception) {
             }
         }
     }

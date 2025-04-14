@@ -80,7 +80,6 @@ class BackupManager(private val context: Context) {
     }
 
     suspend fun restoreBackup(backupUri: Uri): BackupData = withContext(Dispatchers.IO) {
-        // Open backup file
         context.contentResolver.openInputStream(backupUri)?.use { inputStream ->
             ZipInputStream(inputStream).use { zipIn ->
                 var backupData: BackupData? = null
@@ -88,9 +87,11 @@ class BackupManager(private val context: Context) {
 
                 while (zipEntry != null) {
                     if (zipEntry.name == "backup.json") {
-                        // Read the backup.json content
-                        val content = zipIn.bufferedReader().use { it.readText() }
+                        val content = zipIn.bufferedReader().readText() // <- safe read
                         backupData = gson.fromJson(content, BackupData::class.java)
+
+                        // ✅ Add the log here:
+                        android.util.Log.d("BackupManager", "Parsed notes count: ${backupData.notes.size}")
                         break
                     }
                     zipEntry = zipIn.nextEntry
@@ -102,6 +103,8 @@ class BackupManager(private val context: Context) {
             }
         } ?: throw IllegalStateException("Cannot open backup file")
     }
+
+
 
     suspend fun scheduleBackup() {
         // This would be called by WorkManager for scheduled backups
