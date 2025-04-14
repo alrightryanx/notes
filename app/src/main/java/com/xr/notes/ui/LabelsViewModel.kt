@@ -36,7 +36,9 @@ class LabelsViewModel @Inject constructor(
     init {
         // Initialize with active labels from the store
         _activeLabels.value = activeLabelsStore.getActiveLabels()
+        checkAndRebuildDatabase()
         setupObservers()
+        forceRefreshLabels() // Changed from forceRefreshNotes() to forceRefreshLabels()
     }
 
     private fun setupObservers() {
@@ -153,14 +155,14 @@ class LabelsViewModel @Inject constructor(
 
     fun getActiveLabelsIds(): Set<Long> {
         return activeLabelsStore.getActiveLabels()
-    }// Add these methods to your NotesViewModel class - no need to replace the whole file
+    }
 
     private fun checkAndRebuildDatabase() {
         viewModelScope.launch {
             try {
                 repository.rebuildDatabaseIfEmpty()
             } catch (e: Exception) {
-                Log.e("NotesViewModel", "Error checking and rebuilding database", e)
+                Log.e("LabelsViewModel", "Error checking and rebuilding database", e)
             }
         }
     }
@@ -189,12 +191,5 @@ class LabelsViewModel @Inject constructor(
                 }
             }
         }
-    }
-
-    // Call this method from the init block of your ViewModel
-    init {
-        checkAndRebuildDatabase() // Add this line first
-        setupObservers()
-        forceRefreshNotes()
     }
 }
