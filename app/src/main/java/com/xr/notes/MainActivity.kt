@@ -1,14 +1,14 @@
 package com.xr.notes
 
-// File: app/src/main/java/com/example/notesapp/MainActivity.kt
-
-
+import android.content.Context
 import android.os.Bundle
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupActionBarWithNavController
+import com.xr.notes.ui.SharedLabelViewModel
 import com.xr.notes.utils.AppPreferenceManager
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -20,12 +20,22 @@ class MainActivity : AppCompatActivity() {
     lateinit var prefManager: AppPreferenceManager
 
     private lateinit var navController: NavController
+    private val sharedLabelViewModel: SharedLabelViewModel by viewModels()
+
+    // Variable to track the last opened note
+    private var lastOpenedNoteId: Long = -1L
+
+    companion object {
+        // Shared preference key to store last opened note ID
+        const val PREF_LAST_OPENED_NOTE = "last_opened_note_id"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // Apply theme from preferences before setting content view
         prefManager.applyTheme()
+
         // Handle window insets properly
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
@@ -37,9 +47,37 @@ class MainActivity : AppCompatActivity() {
 
         // Setup ActionBar with NavController
         setupActionBarWithNavController(navController)
+
+        // Ensure active labels are initialized
+        sharedLabelViewModel.initializeActiveLabels()
     }
 
     override fun onSupportNavigateUp(): Boolean {
         return navController.navigateUp() || super.onSupportNavigateUp()
+    }
+
+    // Function to save the last opened note ID
+    fun setLastOpenedNote(noteId: Long) {
+        lastOpenedNoteId = noteId
+        // Also save to SharedPreferences for persistence across app restart
+        val sharedPrefs = getPreferences(Context.MODE_PRIVATE)
+        sharedPrefs.edit().putLong(PREF_LAST_OPENED_NOTE, noteId).apply()
+    }
+
+    // Function to get the last opened note ID
+    fun getLastOpenedNote(): Long {
+        if (lastOpenedNoteId == -1L) {
+            // Try to restore from SharedPreferences
+            val sharedPrefs = getPreferences(Context.MODE_PRIVATE)
+            lastOpenedNoteId = sharedPrefs.getLong(PREF_LAST_OPENED_NOTE, -1L)
+        }
+        return lastOpenedNoteId
+    }
+
+    // Clear the last opened note (e.g., when deleting a note)
+    fun clearLastOpenedNote() {
+        lastOpenedNoteId = -1L
+        val sharedPrefs = getPreferences(Context.MODE_PRIVATE)
+        sharedPrefs.edit().remove(PREF_LAST_OPENED_NOTE).apply()
     }
 }

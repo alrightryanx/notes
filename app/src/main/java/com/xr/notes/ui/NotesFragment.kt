@@ -2,21 +2,26 @@ package com.xr.notes.ui
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.SearchView
+import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
+import com.xr.notes.MainActivity
 import com.xr.notes.NotesAdapter
 import com.xr.notes.R
 import com.xr.notes.models.Note
@@ -31,13 +36,20 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
     lateinit var prefManager: AppPreferenceManager
 
     private val viewModel: NotesViewModel by viewModels()
+    private val sharedLabelViewModel: SharedLabelViewModel by activityViewModels()
+
     private lateinit var notesAdapter: NotesAdapter
     private lateinit var recyclerView: RecyclerView
     private lateinit var fabAddNote: FloatingActionButton
+    private lateinit var emptyView: View
+
+    // Flag to control auto-reopen behavior
+    private var shouldCheckLastOpenedNote = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setHasOptionsMenu(true)
+        Log.d("NotesFragment", "onCreate called")
     }
 
     override fun onCreateView(
@@ -45,19 +57,23 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
+        Log.d("NotesFragment", "onCreateView called")
         val view = inflater.inflate(R.layout.fragment_notes, container, false)
 
         recyclerView = view.findViewById(R.id.recyclerViewNotes)
         fabAddNote = view.findViewById(R.id.fabAddNote)
+        emptyView = view.findViewById(R.id.emptyView)
 
         setupRecyclerView()
         setupFab()
+
         observeViewModel()
 
         return view
     }
 
     private fun setupRecyclerView() {
+        Log.d("NotesFragment", "Setting up RecyclerView")
         notesAdapter = NotesAdapter(prefManager, this)
         recyclerView.apply {
             layoutManager = LinearLayoutManager(requireContext())
@@ -67,13 +83,31 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
 
     private fun setupFab() {
         fabAddNote.setOnClickListener {
+            // Clear any last opened note when explicitly creating a new one
+            (activity as? MainActivity)?.clearLastOpenedNote()
             navigateToAddEditNote(-1L)
         }
     }
 
     private fun observeViewModel() {
-        viewModel.notes.observe(viewLifecycleOwner) { notes ->
-            notesAdapter.submitList(notes)
+        Log.d("NotesFragment", "Observing ViewModel")
+
+        viewModel.notesWithLabels.observe(viewLifecycleOwner) { notesWithLabels ->
+            Log.d("NotesFragment", "Received ${notesWithLabels.size} notes from ViewModel")
+            notesAdapter.submitList(notesWithLabels)
+            updateEmptyStateVisibility(notesWithLabels)
+        }
+    }
+
+    private fun updateEmptyStateVisibility(notesWithLabels: List<Any>) {
+        if (notesWithLabels.isEmpty()) {
+            Log.d("NotesFragment", "No notes to display, showing empty state")
+            recyclerView.visibility = View.GONE
+            emptyView.visibility = View.VISIBLE
+        } else {
+            Log.d("NotesFragment", "Showing ${notesWithLabels.size} notes")
+            recyclerView.visibility = View.VISIBLE
+            emptyView.visibility = View.GONE
         }
     }
 
@@ -105,6 +139,46 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
         menu.findItem(R.id.action_delete_selected)?.isVisible = inSelectionMode && notesAdapter.getSelectedCount() > 0
 
         super.onPrepareOptionsMenu(menu)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.d("NotesFragment", "onResume called")
+
+        // Force refresh notes when returning from add/edit
+        viewModel.forceRefreshNotes()
+
+        // Check if we need to reopen a note
+        if (shouldCheckLastOpenedNote) {
+            val mainActivity = activity as? MainActivity
+            val lastNoteId = mainActivity?.getLastOpenedNote() ?: -1L
+
+            if (lastNoteId != -1L) {
+                // Clear the last note reference to prevent loops
+                Log.d("NotesFragment", "Found last opened note ID: $lastNoteId, reopening it")
+                mainActivity.clearLastOpenedNote()
+
+                // Set the flag to prevent reopening during the next onResume
+                shouldCheckLastOpenedNote = false
+
+                // Open the note
+                navigateToAddEditNote(lastNoteId)
+
+                // Don't continue with normal onResume processing since we're navigating away
+                return
+            }
+        }
+
+        // Reset the flag for future onResume calls
+        shouldCheckLastOpenedNote = true
+
+        // Also try a delayed refresh
+        view?.postDelayed({
+            if (isAdded) {
+                Log.d("NotesFragment", "Delayed refresh - requesting data refresh")
+                viewModel.forceRefreshNotes()
+            }
+        }, 500)
     }
 
     @Suppress("DEPRECATION")
@@ -180,6 +254,13 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
             .setTitle(if (noteIds.size > 1) getString(R.string.confirm_delete, noteIds.size) else getString(R.string.confirm_delete))
             .setMessage(getString(R.string.confirm_delete_message))
             .setPositiveButton(R.string.action_delete) { _, _ ->
+                // Clear last opened note if it's being deleted
+                val mainActivity = activity as? MainActivity
+                val lastOpenedNoteId = mainActivity?.getLastOpenedNote() ?: -1L
+                if (noteIds.contains(lastOpenedNoteId)) {
+                    mainActivity?.clearLastOpenedNote()
+                }
+
                 // First delete the notes in the ViewModel which will update the UI immediately
                 viewModel.deleteNotes(noteIds)
 
@@ -209,8 +290,10 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
     }
 
     private fun navigateToAddEditNote(noteId: Long) {
-        val action = NotesFragmentDirections.actionNotesFragmentToAddEditNoteFragment(noteId)
-        findNavController().navigate(action)
+        val bundle = Bundle().apply {
+            putLong("noteId", noteId)
+        }
+        findNavController().navigate(R.id.action_notesFragment_to_addEditNoteFragment, bundle)
     }
 
     // NotesAdapter.NoteItemListener implementation
@@ -227,6 +310,13 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
     }
 
     override fun onRequestDeleteNote(note: Note) {
+        // Clear last opened note if it's being deleted
+        val mainActivity = activity as? MainActivity
+        val lastOpenedNoteId = mainActivity?.getLastOpenedNote() ?: -1L
+        if (note.id == lastOpenedNoteId) {
+            mainActivity?.clearLastOpenedNote()
+        }
+
         // Single note deletion request (from long-press)
         AlertDialog.Builder(requireContext())
             .setTitle(R.string.confirm_delete)
@@ -246,13 +336,5 @@ class NotesFragment : Fragment(), NotesAdapter.NoteItemListener {
                 dialog.cancel()
             }
             .show()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // Force refresh notes but maintain current sort order
-        val currentSortOrder = prefManager.getSortOrder()
-        viewModel.setSortOrder(currentSortOrder) // Explicitly set the sort order again
-        //viewModel.forceRefreshNotes()
     }
 }
